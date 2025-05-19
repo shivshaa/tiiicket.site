@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  mode: "jit",
   darkMode: ["class"],
   content: [
     "./pages/**/*.{ts,tsx}",
@@ -20,6 +21,9 @@ module.exports = {
       },
     },
     extend: {
+      fontFamily: {
+          garet: ['Garet'],
+        },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -78,4 +82,3 @@ module.exports = {
   },
   plugins: [require("tailwindcss-animate")],
 }
-

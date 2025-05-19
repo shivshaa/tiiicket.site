@@ -132,4 +132,3 @@ export function FeaturedEvents() {
     </section>
   )
 }
-

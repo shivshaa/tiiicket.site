@@ -4,9 +4,11 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Filter } from "lucide-react"
+import { Filter, AlertCircle } from "lucide-react"
 import { AnimatedEventCard } from "@/components/animated-event-card"
 import { motion } from "framer-motion"
+import { getEventsByCategory } from "@/lib/supabase"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function MusicPage() {
   const [isLoading, setIsLoading] = useState(true)
@@ -14,85 +16,37 @@ export default function MusicPage() {
   const [filteredEvents, setFilteredEvents] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [dateFilter, setDateFilter] = useState("all")
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Simulate fetching events from API
     const fetchEvents = async () => {
       setIsLoading(true)
-      // In a real app, this would be an API call
-      setTimeout(() => {
-        const musicEvents = [
-          {
-            id: "1",
-            title: "Summer Music Festival",
-            description: "A three-day music festival featuring top artists from around the world.",
-            date: "2023-07-15",
-            time: "12:00 PM",
-            location: "Central Park, New York",
-            image: "/placeholder.svg?height=400&width=600",
-            price: "0.05 ETH",
-            category: "Music",
-          },
-          {
-            id: "7",
-            title: "Jazz Night Special",
-            description: "An evening of smooth jazz with renowned musicians in an intimate setting.",
-            date: "2023-07-22",
-            time: "8:00 PM",
-            location: "Blue Note, New York",
-            image: "/placeholder.svg?height=400&width=600",
-            price: "0.03 ETH",
-            category: "Music",
-          },
-          {
-            id: "8",
-            title: "Rock Legends Reunion",
-            description: "Legendary rock bands reunite for one special night of classic hits.",
-            date: "2023-08-05",
-            time: "7:30 PM",
-            location: "Madison Square Garden, New York",
-            image: "/placeholder.svg?height=400&width=600",
-            price: "0.12 ETH",
-            category: "Music",
-          },
-          {
-            id: "9",
-            title: "Electronic Music Showcase",
-            description: "The best DJs and electronic music producers in one epic night.",
-            date: "2023-07-29",
-            time: "10:00 PM",
-            location: "Warehouse District, Los Angeles",
-            image: "/placeholder.svg?height=400&width=600",
-            price: "0.04 ETH",
-            category: "Music",
-          },
-          {
-            id: "10",
-            title: "Classical Symphony Orchestra",
-            description: "A night of classical masterpieces performed by a world-class orchestra.",
-            date: "2023-08-12",
-            time: "6:00 PM",
-            location: "Symphony Hall, Boston",
-            image: "/placeholder.svg?height=400&width=600",
-            price: "0.06 ETH",
-            category: "Music",
-          },
-          {
-            id: "11",
-            title: "Hip Hop Summit",
-            description: "Celebrating hip hop culture with performances from top artists.",
-            date: "2023-09-02",
-            time: "4:00 PM",
-            location: "Barclays Center, Brooklyn",
-            image: "/placeholder.svg?height=400&width=600",
-            price: "0.07 ETH",
-            category: "Music",
-          },
-        ]
-        setEvents(musicEvents)
-        setFilteredEvents(musicEvents)
+      setError(null)
+
+      try {
+        const musicEvents = await getEventsByCategory("Music")
+
+        // Transform the data to match the expected format for AnimatedEventCard
+        const formattedEvents = musicEvents.map((event) => ({
+          id: event.id,
+          title: event.name,
+          description: event.description,
+          date: event.date,
+          time: event.time,
+          location: event.location,
+          image: event.event_image_url || "/placeholder.svg?height=400&width=600",
+          price: `${event.ticket_price} ETH`,
+          category: event.category,
+        }))
+
+        setEvents(formattedEvents)
+        setFilteredEvents(formattedEvents)
+      } catch (err) {
+        console.error("Failed to fetch music events:", err)
+        setError("Failed to load music events. Please try again later.")
+      } finally {
         setIsLoading(false)
-      }, 1000)
+      }
     }
 
     fetchEvents()
@@ -102,11 +56,11 @@ export default function MusicPage() {
     // Filter events based on search query and date filter
     const filtered = events.filter((event) => {
       const matchesSearch =
-        event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.location.toLowerCase().includes(searchQuery.toLowerCase())
+        event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        event.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        event.location?.toLowerCase().includes(searchQuery.toLowerCase())
 
-      const eventDate = new Date(event.date)
+      const eventDate = event.date ? new Date(event.date) : null
       const today = new Date()
       const nextWeek = new Date()
       nextWeek.setDate(today.getDate() + 7)
@@ -114,11 +68,11 @@ export default function MusicPage() {
       nextMonth.setMonth(today.getMonth() + 1)
 
       let matchesDate = true
-      if (dateFilter === "today") {
+      if (dateFilter === "today" && eventDate) {
         matchesDate = eventDate.toDateString() === today.toDateString()
-      } else if (dateFilter === "week") {
+      } else if (dateFilter === "week" && eventDate) {
         matchesDate = eventDate >= today && eventDate <= nextWeek
-      } else if (dateFilter === "month") {
+      } else if (dateFilter === "month" && eventDate) {
         matchesDate = eventDate >= today && eventDate <= nextMonth
       }
 
@@ -150,6 +104,14 @@ export default function MusicPage() {
           <h1 className="text-3xl font-bold tracking-tight">Music Events</h1>
           <p className="text-muted-foreground">Browse and purchase tickets for upcoming music events and concerts.</p>
         </motion.div>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
         <motion.div
           className="flex flex-col md:flex-row gap-4 items-end"
@@ -213,4 +175,3 @@ export default function MusicPage() {
     </div>
   )
 }
-

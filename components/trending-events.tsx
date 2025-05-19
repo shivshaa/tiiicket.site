@@ -1,281 +1,182 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
-import { useWallet } from "@/components/wallet-provider"
-import { motion } from "framer-motion"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, Clock, MapPin, Ticket } from "lucide-react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-
-type Event = {
-  id: string
-  title: string
-  description: string
-  date: string
-  time: string
-  location: string
-  image: string
-  price: string
-  category: string
-}
+import { Button } from "@/components/ui/button"
+import { Calendar, MapPin, Tag, TrendingUp } from "lucide-react"
+import { motion } from "framer-motion"
+import Link from "next/link"
+import { getTrendingEvents } from "@/lib/supabase"
+import { ethToInr } from "@/lib/contract"
 
 export function TrendingEvents() {
-  const [events, setEvents] = useState<{ sports: Event[]; music: Event[] }>({
-    sports: [],
-    music: [],
-  })
+  const [events, setEvents] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const { isConnected } = useWallet()
 
   useEffect(() => {
-    // Simulate fetching events from API
     const fetchEvents = async () => {
-      setIsLoading(true)
-      // In a real app, this would be an API call
-      setTimeout(() => {
-        setEvents({
-          sports: [
-            {
-              id: "s1",
-              title: "MI vs CSK",
-              description: "TATA IPL Match #14.",
-              date: "2025-04-20",
-              time: "7:30 PM",
-              location: "Wankhede Stadium, Mumbai",
-              image:
-                "https://d2al04l58v9bun.cloudfront.net/blog/wp-content/uploads/2024/04/12143945/IPL-2024-Match-29-MI-vs-CSK-Astrology-Predictions.jpg?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=600&q=80",
-              price: "0.09 ETH",
-              category: "Sports",
-            },
-            {
-              id: "s2",
-              title: "Mumbai City FC vs Bengaluru FC ",
-              description: "The Indian Super League is the men's highest level of the Indian football league system.",
-              date: "2025-03-16",
-              time: "7:30 PM",
-              location: "DY Patil Stadium, Navi Mumbai",
-              image:
-                "https://res.cloudinary.com/dwzmsvp7f/image/upload/f_auto,w_640/c_crop%2Cg_custom%2Fv1739089021%2Fbyzolrmkpyz1jkvpkpaj.jpg?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=600&q=80",
-              price: "0.07 ETH",
-              category: "Sports",
-            },
-            {
-              id: "s3",
-              title: "Puneri Paltan vs Tamil Thalaivas",
-              description: "Pro Kabaddi League, also known as PKL, is an Indian professional Kabaddi league for men.",
-              date: "2025-07-30",
-              time: "8:00 PM",
-              location: "Shree Shiv Chhatrapati Sports Complex, Balewadi, Pune",
-              image:
-                "https://i.ytimg.com/vi/JU-00J4ZnhE/hq720.jpg?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=600&q=80",
-              price: "0.11 ETH",
-              category: "Sports",
-            },
-          ],
-          music: [
-            {
-              id: "m1",
-              title: "Summer Music Festival",
-              description: "A three-day music festival featuring top artists from around the world.",
-              date: "2023-07-15",
-              time: "12:00 PM",
-              location: "Central Park, New York",
-              image:
-                "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=600&q=80",
-              price: "0.05 ETH",
-              category: "Music",
-            },
-            {
-              id: "m2",
-              title: "Rock Legends Reunion",
-              description: "Legendary rock bands reunite for one special night of classic hits.",
-              date: "2023-08-05",
-              time: "7:30 PM",
-              location: "Barclays Center, Brooklyn",
-              image:
-                "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=600&q=80",
-              price: "0.12 ETH",
-              category: "Music",
-            },
-            {
-              id: "m3",
-              title: "Electronic Music Showcase",
-              description: "The best DJs and electronic music producers in one epic night.",
-              date: "2023-07-29",
-              time: "10:00 PM",
-              location: "Warehouse District, Los Angeles",
-              image:
-                "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=600&q=80",
-              price: "0.04 ETH",
-              category: "Music",
-            },
-          ],
-        })
+      try {
+        const trendingEvents = await getTrendingEvents(6)
+
+        const formattedEvents = trendingEvents
+          .filter((event) => {
+            const eventDate = new Date(event.date)
+            const now = new Date()
+            return event.status === "active" && eventDate >= now
+          })
+          .map((event) => ({
+            id: event.id,
+            title: event.name,
+            description: event.description,
+            date: new Date(event.date).toISOString().split("T")[0],
+            time: new Date(event.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            location: event.location,
+            image: event.event_image_url || "/placeholder.svg",
+            price: `${event.ticket_price} ETH`,
+            priceInr: ethToInr(event.ticket_price),
+            category: event.category || "Event",
+            status: event.status,
+          }))
+
+        setEvents(formattedEvents)
+      } catch (error) {
+        console.error("Error fetching trending events:", error)
+        setEvents([])
+      } finally {
         setIsLoading(false)
-      }, 1000)
+      }
     }
 
     fetchEvents()
   }, [])
 
-  const EventCard = ({ event }: { event: Event }) => {
-    return (
-      <motion.div whileHover={{ scale: 1.05 }} transition={{ duration: 0.3 }} className="h-full">
-        <Card className="overflow-hidden h-full flex flex-col">
-          <div className="aspect-video w-full overflow-hidden">
-            <img src={event.image || "/placeholder.svg"} alt={event.title} className="object-cover w-full h-full" />
-          </div>
-          <CardHeader className="pb-2">
-            <div className="flex justify-between items-start">
-              <CardTitle className="text-xl">{event.title}</CardTitle>
-              <Badge>{event.category}</Badge>
-            </div>
-            <CardDescription className="line-clamp-2">{event.description}</CardDescription>
-          </CardHeader>
-          <CardContent className="flex-grow pb-2">
-            <div className="flex flex-col space-y-2 text-sm">
-              <div className="flex items-center">
-                <Calendar className="mr-2 h-4 w-4 text-primary" />
-                <span className="font-medium">
-                  {new Date(event.date).toLocaleDateString("en-US", {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </span>
-              </div>
-              <div className="flex items-center">
-                <Clock className="mr-2 h-4 w-4 text-primary" />
-                <span className="font-medium">{event.time}</span>
-              </div>
-              <div className="flex items-center">
-                <MapPin className="mr-2 h-4 w-4 text-primary" />
-                <span className="font-medium line-clamp-1">{event.location}</span>
-              </div>
-              <div className="flex items-center mt-1">
-                <Ticket className="mr-2 h-4 w-4 text-primary" />
-                <span className="font-bold">{event.price}</span>
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter className="pt-0">
-            <Link href={`/events/${event.id}`} className="w-full">
-              <Button className="w-full">{isConnected ? "Buy Ticket" : "View Details"}</Button>
-            </Link>
-          </CardFooter>
-        </Card>
-      </motion.div>
-    )
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "canceled":
+      case "cancelled":
+        return "destructive"
+      case "inactive":
+        return "bg-yellow-500 text-black"
+      case "active":
+        return "bg-green-500 text-white"
+      default:
+        return "bg-gray-500 text-white"
+    }
+  }
+
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 },
+    },
+  }
+
+  const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 },
   }
 
   return (
-    <section className="w-full py-12 md:py-24 lg:py-32 bg-muted/50">
-      <div className="container px-4 md:px-6">
-        <motion.div
-          className="flex flex-col items-center justify-center space-y-4 text-center"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="space-y-2">
-            <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Trending Events</h2>
-            <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-              Discover the hottest upcoming events and secure your tickets with blockchain technology
-            </p>
+    <section className="py-12 bg-black to-muted/50">
+      <div className="container">
+        <div className="flex flex-col items-start text-left mb-10">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp />
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-primary">
+              Trending Events
+            </h2>
           </div>
-        </motion.div>
-
-        <div className="mt-10">
-          <Tabs defaultValue="all" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-8">
-              <TabsTrigger value="all">All Trending</TabsTrigger>
-              <TabsTrigger value="music">Music Events</TabsTrigger>
-              <TabsTrigger value="sports">Sports Events</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="all">
-              {isLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {Array(6)
-                    .fill(0)
-                    .map((_, i) => (
-                      <div key={i} className="h-[400px] bg-muted animate-pulse rounded-lg"></div>
-                    ))}
-                </div>
-              ) : (
-                <>
-                  <h3 className="text-xl font-semibold mb-4">Top Sports Events</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-                    {events.sports.map((event) => (
-                      <EventCard key={event.id} event={event} />
-                    ))}
-                  </div>
-
-                  <h3 className="text-xl font-semibold mb-4">Top Music Events</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {events.music.map((event) => (
-                      <EventCard key={event.id} event={event} />
-                    ))}
-                  </div>
-                </>
-              )}
-            </TabsContent>
-
-            <TabsContent value="music">
-              {isLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {Array(3)
-                    .fill(0)
-                    .map((_, i) => (
-                      <div key={i} className="h-[400px] bg-muted animate-pulse rounded-lg"></div>
-                    ))}
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {events.music.map((event) => (
-                    <EventCard key={event.id} event={event} />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="sports">
-              {isLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {Array(3)
-                    .fill(0)
-                    .map((_, i) => (
-                      <div key={i} className="h-[400px] bg-muted animate-pulse rounded-lg"></div>
-                    ))}
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {events.sports.map((event) => (
-                    <EventCard key={event.id} event={event} />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+          <p className="text-muted-foreground text-sm">
+            Don’t miss what’s hot and happening near you
+          </p>
         </div>
 
-        <motion.div
-          className="flex justify-center mt-10"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6, duration: 0.5 }}
-        >
-          <Link href="/marketplace">
-            <Button variant="outline" size="lg">
-              View All Events
-            </Button>
-          </Link>
-        </motion.div>
+
+        {isLoading ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {Array(8)
+              .fill(0)
+              .map((_, i) => (
+                <div key={i} className="h-[260px] bg-muted animate-pulse rounded-xl"></div>
+              ))}
+          </div>
+        ) : events.length > 0 ? (
+          <motion.div
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+            variants={container}
+            initial="hidden"
+            animate="show"
+          >
+            {events.map((event) => (
+              <motion.div
+                key={event.id}
+                variants={item}
+                whileHover={{
+                  scale: 1.03,
+                  rotateY: 3,
+                  rotateX: 2,
+                  boxShadow: "0 12px 25px rgba(0, 0, 0, 0.15)",
+                }}
+                transition={{ type: "spring", stiffness: 200, damping: 20 }}
+              >
+                <Link href={`/events/${event.id}`}>
+                  <Card className="overflow-hidden h-full rounded-2xl border border-muted/20 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-md hover:shadow-xl transition-all duration-300">
+                    <div className="relative h-40 overflow-hidden">
+                      <img
+                        src={event.image}
+                        alt={event.title}
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent z-10" />
+                      <div className="absolute top-2 right-2 z-20 flex flex-col gap-1">
+                        <Badge variant="secondary" className="text-xs bg-primary/80 text-white shadow-sm px-2 py-0.5">
+                          {event.category}
+                        </Badge>
+                        <Badge className={`text-xs ${getStatusBadgeVariant(event.status)} px-2 py-0.5`}>
+                          {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
+                        </Badge>
+                      </div>
+                    </div>
+                    <CardContent className="p-4">
+                      <h3 className="text-lg font-semibold line-clamp-1">{event.title}</h3>
+                      <div className="mt-2 text-sm space-y-1 text-muted-foreground">
+                        <div className="flex items-center">
+                          <Calendar className="h-4 w-4 mr-1" />
+                          <span>{new Date(event.date).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })} • {event.time}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <MapPin className="h-4 w-4 mr-1" />
+                          <span className="line-clamp-1">{event.location}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <Tag className="h-4 w-4 mr-1 text-yellow-600" />
+                          <span>{event.price}</span>
+                          <span className="text-xs text-muted-foreground ml-1">(₹{event.priceInr.toLocaleString("en-IN")})</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="p-4 pt-2">
+                      <Button
+                        size="sm"
+                        className="w-full text-xs bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700"
+                      >
+                        View Details
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                </Link>
+              </motion.div>
+            ))}
+          </motion.div>
+        ) : (
+          <div className="text-center py-12">
+            <h3 className="text-lg font-medium">No upcoming events found</h3>
+            <p className="text-muted-foreground">Check back later for new events</p>
+          </div>
+        )}
       </div>
     </section>
   )
 }
-

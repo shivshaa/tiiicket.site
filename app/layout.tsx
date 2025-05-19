@@ -1,43 +1,40 @@
 import type React from "react"
+import "@/app/globals.css"
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
-import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
-import { WalletProvider } from "@/components/wallet-provider"
-import { Toaster } from "@/components/ui/toaster"
 import { SiteHeader } from "@/components/site-header"
-import { HeroCarousel } from "@/components/hero-carousel"
 import { SiteFooter } from "@/components/site-footer"
-
-const inter = Inter({ subsets: ["latin"] })
+import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/ui/toaster"
+import { WalletProvider } from "@/components/wallet-provider"
+import { AuthProvider } from "@/components/auth-provider"
 
 export const metadata: Metadata = {
-  title: "WebIsGrey - NFT Ticketing Platform",
-  description: "A decentralized ticketing platform powered by NFTs",
+  title: "tiiicket.com",
+  description: "NFT Ticketing Platform",
     generator: 'v0.dev'
 }
 
-export default function RootLayout({
-  children,
-}: Readonly<{
+interface RootLayoutProps {
   children: React.ReactNode
-}>) {
+}
+
+export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <html lang="en">
+      <body>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <WalletProvider>
-            <div className="relative flex min-h-screen flex-col">
-              <SiteHeader />
-              <HeroCarousel />
-              <div className="flex-1">{children}</div>
-              <SiteFooter />
-            </div>
-            <Toaster />
+            <AuthProvider>
+              <div className="relative flex min-h-screen flex-col">
+                <SiteHeader />
+                <main className="flex-1">{children}</main>
+                <SiteFooter />
+              </div>
+              <Toaster />
+            </AuthProvider>
           </WalletProvider>
         </ThemeProvider>
       </body>
     </html>
   )
 }
-
