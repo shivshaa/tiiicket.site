@@ -242,7 +242,7 @@ export default function EventPage({ params }: { params: { id: string } }) {
   }
 
   const handleViewMarketplace = () => {
-    router.push(`/marketplace/events/${eventId}`)
+    router.push(`/market/events/${eventId}`)
   }
 
   if (loading) {
@@ -268,7 +268,7 @@ export default function EventPage({ params }: { params: { id: string } }) {
           <h3 className="text-lg font-medium">Event not found</h3>
           <p className="text-muted-foreground">The event you're looking for doesn't exist or has been removed.</p>
           <Button className="mt-4" asChild>
-            <a href="/marketplace">Browse Marketplace</a>
+            <a href="/market">Browse Marketplace</a>
           </Button>
         </div>
       </div>
