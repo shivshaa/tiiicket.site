@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { Store, Landmark, Wallet, Menu, Compass, ShoppingCart } from "lucide-react"
+import { Store, Ticket, Landmark, Wallet, Menu, Compass, ShoppingCart } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -36,7 +36,7 @@ export function SiteHeader() {
 
   const logoSrc =
     currentTheme === "dark"
-      ? "https://res.cloudinary.com/deximageapi/image/upload/v1744465886/Screenshot_2025-04-12_192046-removebg-preview_ebhg42.png"
+      ? "https://res.cloudinary.com/deximageapi/image/upload/v1747073795/tiiicket-black-removebg-preview_emy3ex.png"
       : "https://res.cloudinary.com/deximageapi/image/upload/v1744465886/Screenshot_2025-04-12_192046-removebg-preview_ebhg42.png"
 
   const [isOpen, setIsOpen] = useState(false)
@@ -69,22 +69,31 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background">
       <div className="container flex h-16 items-center justify-between">
-        <div className="flex items-center">
-          <Link href="/" className="flex items-center">
-            <div className="relative">
+        <div className="flex items-center space-x-4">
+          <Ticket className="h-10 w-10 text-black-400 animate-bounce drop-shadow-lg" />
+          <Link href="/" className="flex items-center rounded-lg p-1 hover:shadow transition-shadow duration-300">
+            <div className="relative group">
               {mounted && (
-                <Image src={logoSrc || "/placeholder.svg"} alt="tiiicket logo" width={140} height={90} priority />
+                <Image
+                  className="transition-transform duration-300 group-hover:scale-105"
+                  src={logoSrc || "/placeholder.svg"}
+                  alt="tiiicket logo"
+                  width={140}
+                  height={90}
+                  priority
+                />
               )}
             </div>
           </Link>
         </div>
+
 
         <div className="hidden md:flex items-center justify-center flex-1 gap-8">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="flex flex-col items-center h-auto py-2 hover:bg-green-500 hover:text-white"
+                className="flex flex-col items-center h-auto py-2 transition-transform duration-300 group-hover:scale-105 hover:text-white"
               >
                 <Compass className="h-6 w-6 mb-1" />
                 <span className="text-xs font-medium">Events</span>
@@ -102,7 +111,7 @@ export function SiteHeader() {
 
           <Button
             variant="ghost"
-            className="flex flex-col items-center h-auto py-2 hover:bg-green-500 hover:text-white"
+            className="flex flex-col items-center h-auto py-2 transition-transform duration-300 group-hover:scale-105 hover:text-white"
             asChild
           >
             <Link href="/market">
@@ -113,7 +122,7 @@ export function SiteHeader() {
 
           <Button
             variant="ghost"
-            className="flex flex-col items-center h-auto py-2 hover:bg-green-500 hover:text-white"
+            className="flex flex-col items-center h-auto py-2 transition-transform duration-300 group-hover:scale-105 hover:text-white"
             asChild
           >
             <Link href="/organizer/dashboard">

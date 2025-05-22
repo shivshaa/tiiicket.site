@@ -1,5 +1,5 @@
-import axios from "axios"
 import QRCode from "qrcode"
+
 // IPFS Gateway URL
 const IPFS_GATEWAY = "https://gateway.pinata.cloud/ipfs/"
 
@@ -12,60 +12,52 @@ export const getIPFSGatewayURL = (ipfsHash: string): string => {
   return `${IPFS_GATEWAY}${ipfsHash}`
 }
 
-// Function to upload file to IPFS using Pinata
+// Function to upload file to IPFS using server-side API
 export const uploadToIPFS = async (file: File): Promise<string> => {
   try {
-    // Create form data
     const formData = new FormData()
+    formData.append("type", "file")
     formData.append("file", file)
 
-    // Set up the API key and secret
-    const pinataApiKey = process.env.NEXT_PUBLIC_PINATA_API_KEY
-    const pinataSecretApiKey = process.env.NEXT_PUBLIC_PINATA_SECRET_KEY
-
-    if (!pinataApiKey || !pinataSecretApiKey) {
-      throw new Error("Pinata API keys not found")
-    }
-
-    // Upload to Pinata
-    const response = await axios.post("https://api.pinata.cloud/pinning/pinFileToIPFS", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-        pinata_api_key: pinataApiKey,
-        pinata_secret_api_key: pinataSecretApiKey,
-      },
+    // Use our server-side API
+    const response = await fetch("/api/ipfs", {
+      method: "POST",
+      body: formData,
     })
 
-    // Return the IPFS hash
-    return response.data.IpfsHash
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(`Error uploading to IPFS: ${errorData.error}`)
+    }
+
+    const data = await response.json()
+    return data.ipfsHash
   } catch (error) {
     console.error("Error uploading to IPFS:", error)
     throw error
   }
 }
 
-// Function to upload JSON metadata to IPFS
+// Function to upload JSON metadata to IPFS using server-side API
 export const uploadJSONToIPFS = async (metadata: any): Promise<string> => {
   try {
-    // Set up the API key and secret
-    const pinataApiKey = process.env.NEXT_PUBLIC_PINATA_API_KEY
-    const pinataSecretApiKey = process.env.NEXT_PUBLIC_PINATA_SECRET_KEY
+    const formData = new FormData()
+    formData.append("type", "json")
+    formData.append("json", JSON.stringify(metadata))
 
-    if (!pinataApiKey || !pinataSecretApiKey) {
-      throw new Error("Pinata API keys not found")
-    }
-
-    // Upload to Pinata
-    const response = await axios.post("https://api.pinata.cloud/pinning/pinJSONToIPFS", metadata, {
-      headers: {
-        "Content-Type": "application/json",
-        pinata_api_key: pinataApiKey,
-        pinata_secret_api_key: pinataSecretApiKey,
-      },
+    // Use our server-side API
+    const response = await fetch("/api/ipfs", {
+      method: "POST",
+      body: formData,
     })
 
-    // Return the IPFS hash
-    return response.data.IpfsHash
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(`Error uploading JSON to IPFS: ${errorData.error}`)
+    }
+
+    const data = await response.json()
+    return data.ipfsHash
   } catch (error) {
     console.error("Error uploading JSON to IPFS:", error)
     throw error
