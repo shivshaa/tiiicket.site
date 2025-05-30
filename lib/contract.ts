@@ -201,7 +201,7 @@ export const buyResaleTicket = async (tokenId: number, price: string) => {
     const priceInWei = ethers.parseEther(price)
 
     // Call the contract method to buy the ticket
-    const tx = await contract.buyTicket(tokenId, {
+    const tx = await contract.buyResaleTicket(tokenId, {
       value: priceInWei,
       gasLimit: 500000, // Set a fixed gas limit to avoid estimation issues
     })

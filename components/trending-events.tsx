@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar, MapPin, Tag, TrendingUp } from "lucide-react"
+import { Calendar, MapPin, Tag } from "lucide-react"
 import { motion } from "framer-motion"
 import Link from "next/link"
 import { getTrendingEvents } from "@/lib/supabase"
@@ -30,7 +30,7 @@ export function TrendingEvents() {
             title: event.name,
             description: event.description,
             date: new Date(event.date).toISOString().split("T")[0],
-            time: new Date(event.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            time: event.time.slice(0, 5),
             location: event.location,
             image: event.event_image_url || "/placeholder.svg",
             price: `${event.ticket_price} ETH`,
@@ -83,7 +83,25 @@ export function TrendingEvents() {
       <div className="container">
         <div className="flex flex-col items-start text-left mb-10">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-7 w-7 text-red-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M14.828 14.828a4 4 0 01-5.656-5.656L12 6l2.828 2.828a4 4 0 010 5.656z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 13l3 3L20 8"
+              />
+            </svg>
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-primary">
               Trending Events
             </h2>

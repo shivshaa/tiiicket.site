@@ -23,7 +23,7 @@ export const getTicketsListedForEventOptimized = async (eventId: string | number
       .from("event_data")
       .select("id")
       .eq("id", eventId)
-      .single()
+      .maybeSingle()
 
     if (eventError || !eventData) {
       console.error("Event not found:", eventError?.message || "No event with this ID")
@@ -97,7 +97,7 @@ export const getTicketDetailsOptimized = async (tokenId: number) => {
       .from("tickets")
       .select("token_id")
       .eq("token_id", tokenId)
-      .single()
+      .maybeSingle()
 
     if (checkError || !ticketExists) {
       console.error("Ticket not found:", checkError?.message || "No ticket with this ID")
@@ -134,7 +134,7 @@ export const getTicketDetailsOptimized = async (tokenId: number) => {
         )
       `)
       .eq("token_id", tokenId)
-      .single()
+      .maybeSingle()
 
     if (error) {
       console.error("Error fetching ticket details:", error)

@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useWallet } from "@/components/wallet-provider"
@@ -50,7 +52,13 @@ export default function TicketsPage() {
     fetchTickets()
   }, [isConnected, address, toast])
 
-  const handleCancelListing = async (tokenId: number) => {
+  // Update the handleCancelListing function to prevent event bubbling
+  const handleCancelListing = async (tokenId: number, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+
     try {
       setCancellingTicket(tokenId)
 
@@ -217,7 +225,7 @@ export default function TicketsPage() {
                   <Button
                     variant="outline"
                     className="w-full"
-                    onClick={() => handleCancelListing(ticket.token_id)}
+                    onClick={(e) => handleCancelListing(ticket.token_id, e)}
                     disabled={cancellingTicket === ticket.token_id}
                   >
                     {cancellingTicket === ticket.token_id ? "Cancelling..." : "Cancel Listing"}

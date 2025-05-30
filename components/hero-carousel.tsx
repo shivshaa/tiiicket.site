@@ -29,21 +29,21 @@ export function HeroCarousel() {
 
   const carouselMedia: CarouselMedia[] = [
     {
-      url: "https://images.unsplash.com/photo-1505842465776-3b4953ca4f44",
+      url: "https://res.cloudinary.com/deximageapi/image/upload/v1748328769/9303834_fbecua.jpg",
       alt: "Concert with crowd and stage lights",
-      caption: "Revolutionizing Sports Tick3ting.",
+      caption: "Experience Unforgettable Live Sports Events.",
       type: "image",
     },
     {
       url: "https://videos.pexels.com/video-files/2430839/2430839-uhd_2560_1440_24fps.mp4",
       alt: "Soccer stadium filled with fans",
-      caption: "Get Your Tickets Hassle-Free for in demand Premier Sports Matches",
+      caption: "Hassle free tickets to Premier Sports Matches",
       type: "video",
     },
     {
       url: "https://videos.pexels.com/video-files/2324274/2324274-uhd_2560_1440_25fps.mp4",
       alt: "Concert with crowd and stage lights",
-      caption: "Dedicated Marketplace for fans to exchange their tickets.",
+      caption: "Easy Buy and Sell on the Marketplace",
       type: "video",
     },
     {
@@ -55,20 +55,20 @@ export function HeroCarousel() {
     {
       url: "https://videos.pexels.com/video-files/14670415/14670415-hd_1920_1080_24fps.mp4",
       alt: "Crowd enjoying a music festival",
-      caption: "100% Verified & Tamper-Proof Tickets",
+      caption: "100% Verified and Tamper-Proof Tickets",
       type: "video",
     },
     {
       url: "https://videos.pexels.com/video-files/30334109/13003291_1920_1080_30fps.mp4",
       alt: "Crowd",
-      caption: "Fair Price, No Scalpers (Finally!)",
+      caption: "Finally!, A fair price, no scalpers involved.",
       type: "video",
     },
     {
-    url: "https://videos.pexels.com/video-files/1739010/1739010-hd_1920_1080_30fps.mp4",
+    url: "https://res.cloudinary.com/deximageapi/image/upload/v1748328767/9303816_okrs82.jpg",
     alt: "ocean drone",
-    caption: "No Refund Drama \n sell instantly on the Marketplace",
-    type: "video",
+    caption: "No Refund Drama",
+    type: "image",
     },
   ]
 
@@ -108,7 +108,7 @@ export function HeroCarousel() {
         <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="text-center text-white max-w-2xl px-4">
             <h2 className="text-5xl font-bold mb-4 animate-fade-in-up">{media.caption}</h2>
-            {/*<p className="text-xl animate-slide-in-left animate-duration-7">Powered by blockchain technology</p>*/}
+            <p className="text-xl top-600px animate-slide-in-left animate-duration-700">Powered by blockchain technology</p>
           </div>
         </div>
       </div>

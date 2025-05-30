@@ -641,3 +641,84 @@ export const buyTicketFromSecondaryMarket = async (saleId: string, tokenId: numb
     throw error
   }
 }
+
+// Authentication functions for wallet-based sign-in
+
+// Generate authentication nonce
+export const generateAuthNonce = async (walletAddress: string): Promise<string> => {
+  try {
+    const { data, error } = await supabase.rpc("generate_auth_nonce", {
+      p_wallet_address: walletAddress.toLowerCase(),
+    })
+
+    if (error) {
+      console.error("Error generating nonce:", error)
+      throw new Error("Failed to generate authentication nonce")
+    }
+
+    return data
+  } catch (error) {
+    console.error("Nonce generation error:", error)
+    throw error
+  }
+}
+
+// Verify wallet signature
+export const verifyWalletSignature = async (
+  walletAddress: string,
+  signature: string,
+  nonce: string,
+): Promise<{ success: boolean; token?: string; user?: any; error?: string }> => {
+  try {
+    const { data, error } = await supabase.rpc("verify_wallet_signature", {
+      p_wallet_address: walletAddress.toLowerCase(),
+      p_signature: signature,
+      p_nonce: nonce,
+    })
+
+    if (error) {
+      console.error("Signature verification error:", error)
+      return {
+        success: false,
+        error: "Signature verification failed",
+      }
+    }
+
+    return data
+  } catch (error) {
+    console.error("Verification error:", error)
+    return {
+      success: false,
+      error: error.message,
+    }
+  }
+}
+
+// Clean up expired nonces (utility function)
+export const cleanupExpiredNonces = async (): Promise<number> => {
+  try {
+    const { data, error } = await supabase.rpc("cleanup_expired_nonces")
+
+    if (error) {
+      console.error("Error cleaning up nonces:", error)
+      throw error
+    }
+
+    return data || 0
+  } catch (error) {
+    console.error("Cleanup error:", error)
+    return 0
+  }
+}
+
+// Check authentication status
+export const checkAuthStatus = async (token: string): Promise<boolean> => {
+  try {
+    // In a production environment, you would verify the JWT token here
+    // For now, we'll just check if the token exists and is properly formatted
+    return token && token.length === 64 && /^[a-fA-F0-9]+$/.test(token)
+  } catch (error) {
+    console.error("Auth status check error:", error)
+    return false
+  }
+}

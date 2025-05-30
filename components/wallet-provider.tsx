@@ -4,39 +4,32 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from "
 
 interface WalletContextType {
   isConnected: boolean
-  isConnecting: boolean
   address: string | null
   connectWallet: () => Promise<void>
   disconnectWallet: () => void
-  checkConnection: () => Promise<boolean>
 }
 
 const WalletContext = createContext<WalletContextType>({
   isConnected: false,
-  isConnecting: false,
   address: null,
   connectWallet: async () => {},
   disconnectWallet: () => {},
-  checkConnection: async () => false,
 })
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [isConnected, setIsConnected] = useState(false)
-  const [isConnecting, setIsConnecting] = useState(false)
   const [address, setAddress] = useState<string | null>(null)
-  const [hasCheckedConnection, setHasCheckedConnection] = useState(false)
 
-  // Silently check if wallet is already connected on component mount
-  // This uses eth_accounts which doesn't trigger a popup
+  // Check if wallet is already connected on component mount
   useEffect(() => {
-    const silentConnectionCheck = async () => {
-      if (typeof window !== "undefined" && window.ethereum && !hasCheckedConnection) {
+    const checkConnection = async () => {
+      if (typeof window !== "undefined" && window.ethereum) {
         try {
-          // Get stored address from localStorage
+          // Check if we have a stored address
           const storedAddress = localStorage.getItem("walletAddress")
 
           if (storedAddress) {
-            // Use eth_accounts which doesn't trigger a popup
+            // Check if we're still connected to this address
             const accounts = await window.ethereum.request({ method: "eth_accounts" })
 
             if (accounts.length > 0 && accounts[0].toLowerCase() === storedAddress.toLowerCase()) {
@@ -47,20 +40,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
               localStorage.removeItem("walletAddress")
             }
           }
-
-          setHasCheckedConnection(true)
         } catch (error) {
-          console.error("Error during silent connection check:", error)
-          // Don't update connection state on error
-          setHasCheckedConnection(true)
+          console.error("Error checking wallet connection:", error)
         }
-      } else {
-        setHasCheckedConnection(true)
       }
     }
 
-    silentConnectionCheck()
-  }, [hasCheckedConnection])
+    checkConnection()
+  }, [])
 
   // Listen for account changes
   useEffect(() => {
@@ -87,27 +74,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [address])
 
-  // Check connection status without triggering popup
-  const checkConnection = async (): Promise<boolean> => {
-    if (typeof window !== "undefined" && window.ethereum) {
-      try {
-        const accounts = await window.ethereum.request({ method: "eth_accounts" })
-        return accounts.length > 0
-      } catch (error) {
-        console.error("Error checking connection:", error)
-        return false
-      }
-    }
-    return false
-  }
-
-  // Connect wallet only when explicitly requested by user
   const connectWallet = async () => {
     if (typeof window !== "undefined" && window.ethereum) {
       try {
-        setIsConnecting(true)
-
-        // This will trigger the MetaMask popup
         const accounts = await window.ethereum.request({ method: "eth_requestAccounts" })
 
         if (accounts.length > 0) {
@@ -117,13 +86,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error("Error connecting wallet:", error)
-        // Show user-friendly error message
-        if (error.code === 4001) {
-          // User rejected the connection request
-          console.log("User rejected the connection request")
-        }
-      } finally {
-        setIsConnecting(false)
       }
     } else {
       alert("Please install MetaMask or another Ethereum wallet to use this feature.")
@@ -137,16 +99,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <WalletContext.Provider
-      value={{
-        isConnected,
-        isConnecting,
-        address,
-        connectWallet,
-        disconnectWallet,
-        checkConnection,
-      }}
-    >
+    <WalletContext.Provider value={{ isConnected, address, connectWallet, disconnectWallet }}>
       {children}
     </WalletContext.Provider>
   )

@@ -53,7 +53,7 @@ export const listTicketForResale = async (
       .select("sale_id, status")
       .eq("token_id", params.tokenId)
       .eq("status", "pending")
-      .single()
+      .maybeSingle()
 
     if (existingListing) {
       const error = new Error("This ticket already has a pending listing")
@@ -189,7 +189,7 @@ export const cancelTicketListing = async (
       .select("sale_id, status")
       .eq("token_id", tokenId)
       .eq("status", "pending")
-      .single()
+      .maybeSingle()
 
     if (!existingListing) {
       const error = new Error("No pending listing found for this ticket")

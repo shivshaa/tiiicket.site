@@ -2,7 +2,7 @@ import { ethers } from "ethers"
 import { magic } from "./magic"
 
 // Initialize provider with Polygon RPC endpoint
-const provider = new ethers.JsonRpcProvider("https://polygon-rpc.com")
+const provider = new ethers.JsonRpcProvider("https://rpc-amoy.polygon.technology/")
 
 /**
  * Fetches wallet balance from Polygon network
