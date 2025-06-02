@@ -26,6 +26,9 @@ export const getSupabase = (): SupabaseClient => {
 
 export const supabase = getSupabase()
 
+// Re-export createClient for other modules that might need it
+export { createClient } from "@supabase/supabase-js"
+
 // Function to update event status
 export const updateEventStatus = async (eventId: string, status: "active" | "expired" | "canceled") => {
   try {
@@ -44,7 +47,7 @@ export const updateEventStatus = async (eventId: string, status: "active" | "exp
 }
 
 // Function to add an event
-export const addEvent = async (eventData) => {
+export const addEvent = async (eventData: any) => {
   try {
     const { data, error } = await supabase
       .from("event_data") // Ensure table name is correct
