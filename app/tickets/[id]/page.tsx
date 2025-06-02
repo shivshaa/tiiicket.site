@@ -25,8 +25,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 
-// Add wallet hook import - adjust import path as needed
-import { WalletAuth } from "@/components/WalletAuth" // Adjust this import path to match your wallet hook
+// Import wallet hook
+import { useWallet } from "@/components/wallet-provider"
 
 interface Ticket {
   id: string
@@ -65,8 +65,10 @@ const TicketDetails = () => {
   const [isListing, setIsListing] = useState(false)
 
   useEffect(() => {
-    fetchTicket()
-  }, [params.id, isConnected, address])
+    if (params.id) {
+      fetchTicket()
+    }
+  }, [params.id])
 
   const fetchTicket = async () => {
     if (!params.id) {
@@ -81,7 +83,7 @@ const TicketDetails = () => {
     setIsLoading(true)
 
     try {
-      const ticket = await fetchTicketById(params.id)
+      const ticket = await fetchTicketById(params.id as string)
       setTicket(ticket)
     } catch (error: any) {
       toast({
@@ -485,9 +487,7 @@ const TicketDetails = () => {
               ) : (
                 <Badge variant="destructive">Invalid</Badge>
               )}
-              {ticket.for_sale && (
-                <Badge variant="default">For Sale: {formatEthPrice(ticket.price)}</Badge>
-              )}
+              {ticket.for_sale && <Badge variant="default">For Sale: {formatEthPrice(ticket.price)}</Badge>}
             </div>
           </div>
           <Separator />
@@ -565,9 +565,7 @@ const TicketDetails = () => {
                             {resalePriceError && <p className="text-sm text-red-500">{resalePriceError}</p>}
                           </div>
                           <div className="bg-muted p-3 rounded-lg text-sm">
-                            <p className="font-medium mb-1">
-                              Original Price: {formatEthPrice(ticket.price)}
-                            </p>
+                            <p className="font-medium mb-1">Original Price: {formatEthPrice(ticket.price)}</p>
                             <p className="text-muted-foreground">
                               You can set any price for resale. Consider market demand and original pricing.
                             </p>
@@ -613,12 +611,12 @@ const TicketDetails = () => {
                 )}
               </>
             ) : (
-              <Button 
-                className="w-full" 
-                onClick={handleBuyTicket} 
-                disabled={isBuying || !ticket.for_sale}
-              >
-                {isBuying ? "Buying..." : ticket.for_sale ? `Buy Ticket (${formatEthPrice(ticket.price)})` : "Not for Sale"}
+              <Button className="w-full" onClick={handleBuyTicket} disabled={isBuying || !ticket.for_sale}>
+                {isBuying
+                  ? "Buying..."
+                  : ticket.for_sale
+                    ? `Buy Ticket (${formatEthPrice(ticket.price)})`
+                    : "Not for Sale"}
               </Button>
             )}
           </div>
