@@ -26,7 +26,7 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 
 // Add wallet hook import - adjust import path as needed
-import { useWallet } from "@/hooks/useWallet" // Adjust this import path to match your wallet hook
+import { WalletAuth } from "@/components/WalletAuth" // Adjust this import path to match your wallet hook
 
 interface Ticket {
   id: string

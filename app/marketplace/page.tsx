@@ -1,2 +1,2 @@
-```typescriptreact file="app/marketplace/page.tsx" isDeleted="true"
+\`\`\`typescriptreact file="app/marketplace/page.tsx" isDeleted="true"
 ...deleted...
