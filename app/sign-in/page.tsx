@@ -32,6 +32,27 @@ export default function SignIn() {
     }
   }, [])
 
+  // Add this useEffect after the existing one
+  useEffect(() => {
+    // Check for MetaMask installation after component mounts
+    const checkMetaMask = () => {
+      if (typeof window !== "undefined") {
+        // Wait a bit for MetaMask to inject
+        setTimeout(() => {
+          if (!window.ethereum) {
+            console.warn("No Ethereum provider detected")
+          } else if (!window.ethereum.isMetaMask) {
+            console.warn("MetaMask not detected, found:", window.ethereum.constructor.name)
+          } else {
+            console.log("MetaMask detected successfully")
+          }
+        }, 1000)
+      }
+    }
+
+    checkMetaMask()
+  }, [])
+
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
 

@@ -47,9 +47,21 @@ export default function WalletAuth({ onAuthSuccess, onAuthError }: WalletAuthPro
 
   const { toast } = useToast()
 
-  // Check if MetaMask is installed
+  // Check if MetaMask is installed with better detection
   const isMetaMaskInstalled = () => {
-    return typeof window !== "undefined" && window.ethereum && window.ethereum.isMetaMask
+    if (typeof window === "undefined") return false
+
+    // Check for ethereum provider
+    if (!window.ethereum) return false
+
+    // Check if it's specifically MetaMask
+    return window.ethereum.isMetaMask === true
+  }
+
+  // Add a function to detect if any Ethereum provider exists
+  const hasEthereumProvider = () => {
+    if (typeof window === "undefined") return false
+    return !!window.ethereum
   }
 
   // Format wallet address for display
@@ -109,23 +121,43 @@ export default function WalletAuth({ onAuthSuccess, onAuthError }: WalletAuthPro
     }
   }
 
-  // Connect to MetaMask
+  // Connect to MetaMask with better error handling
   const connectWallet = async () => {
+    // Check if we're in browser environment
+    if (typeof window === "undefined") {
+      onAuthError("Please use a web browser to connect your wallet.")
+      return
+    }
+
+    // Check for any Ethereum provider first
+    if (!hasEthereumProvider()) {
+      onAuthError("No Ethereum wallet detected. Please install MetaMask or another Ethereum wallet.")
+      return
+    }
+
+    // Check specifically for MetaMask
     if (!isMetaMaskInstalled()) {
-      onAuthError("MetaMask is not installed. Please install MetaMask to continue.")
+      // If there's an ethereum provider but it's not MetaMask
+      if (window.ethereum) {
+        onAuthError(
+          "MetaMask not detected. Please install MetaMask or switch to MetaMask if you have multiple wallets.",
+        )
+      } else {
+        onAuthError("MetaMask is not installed. Please install MetaMask to continue.")
+      }
       return
     }
 
     setWalletState((prev) => ({ ...prev, isConnecting: true }))
 
     try {
-      // Request account access
+      // Try to connect to MetaMask
       const accounts = await window.ethereum.request({
         method: "eth_requestAccounts",
       })
 
-      if (accounts.length === 0) {
-        throw new Error("No accounts found")
+      if (!accounts || accounts.length === 0) {
+        throw new Error("No accounts found. Please unlock MetaMask and try again.")
       }
 
       const address = accounts[0]
@@ -161,7 +193,20 @@ export default function WalletAuth({ onAuthSuccess, onAuthError }: WalletAuthPro
         isConnecting: false,
         isConnected: false,
       }))
-      onAuthError(`Failed to connect wallet: ${error.message}`)
+
+      // Handle specific error cases
+      let errorMessage = "Failed to connect wallet"
+      if (error.code === 4001) {
+        errorMessage = "Connection rejected by user"
+      } else if (error.code === -32002) {
+        errorMessage = "Connection request already pending. Please check MetaMask."
+      } else if (error.message.includes("User rejected")) {
+        errorMessage = "Connection rejected by user"
+      } else {
+        errorMessage = `Failed to connect wallet: ${error.message}`
+      }
+
+      onAuthError(errorMessage)
     }
   }
 
@@ -169,7 +214,7 @@ export default function WalletAuth({ onAuthSuccess, onAuthError }: WalletAuthPro
   const generateNonce = async (walletAddress: string) => {
     try {
       console.log("Generating nonce for address:", walletAddress)
-      
+
       const response = await fetch("https://supabase-edge-function.onrender.com/nonce", {
         method: "POST",
         headers: {
@@ -215,11 +260,11 @@ export default function WalletAuth({ onAuthSuccess, onAuthError }: WalletAuthPro
 
       console.log("Sending verification payload:", payload)
 
-      const response = await fetch('https://supabase-edge-function.onrender.com/verify', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
+      const response = await fetch("https://supabase-edge-function.onrender.com/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
         },
         body: JSON.stringify(payload),
       })
@@ -246,7 +291,7 @@ export default function WalletAuth({ onAuthSuccess, onAuthError }: WalletAuthPro
       }
 
       console.log("Verification response data:", data)
-      
+
       // Transform server response to match frontend expectations
       return {
         success: data.valid, // Server returns 'valid', frontend expects 'success'
@@ -254,8 +299,8 @@ export default function WalletAuth({ onAuthSuccess, onAuthError }: WalletAuthPro
         token: `auth_${Date.now()}_${walletAddress.slice(0, 8)}`, // Generate a simple token
         user: {
           address: walletAddress,
-          authenticatedAt: data.timestamp || new Date().toISOString()
-        }
+          authenticatedAt: data.timestamp || new Date().toISOString(),
+        },
       }
     } catch (error) {
       console.error("Error verifying signature:", error)
@@ -304,7 +349,7 @@ export default function WalletAuth({ onAuthSuccess, onAuthError }: WalletAuthPro
       const verificationResult = await verifySignature(message, signature, walletState.address)
 
       if (!verificationResult.success) {
-        throw new Error(`Authentication failed: ${verificationResult.error || 'Unknown error'}`)
+        throw new Error(`Authentication failed: ${verificationResult.error || "Unknown error"}`)
       }
 
       // Save the auth token and user data (Note: localStorage won't work in artifacts)
@@ -400,10 +445,31 @@ export default function WalletAuth({ onAuthSuccess, onAuthError }: WalletAuthPro
         <CardDescription>Secure wallet-based authentication using cryptographic signatures</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {!isMetaMaskInstalled() && (
+        {!hasEthereumProvider() && (
           <Alert>
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>MetaMask is not installed. Please install MetaMask to continue.</AlertDescription>
+            <AlertDescription>
+              No Ethereum wallet detected. Please install MetaMask or another Ethereum wallet to continue.
+              <br />
+              <a
+                href="https://metamask.io/download/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline mt-1 inline-block"
+              >
+                Download MetaMask
+              </a>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {hasEthereumProvider() && !isMetaMaskInstalled() && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              MetaMask not detected. Please install MetaMask or switch to MetaMask if you have multiple wallets
+              installed.
+            </AlertDescription>
           </Alert>
         )}
 
@@ -450,7 +516,7 @@ export default function WalletAuth({ onAuthSuccess, onAuthError }: WalletAuthPro
 
         <Button
           onClick={walletState.isConnected ? authenticateWallet : connectWallet}
-          disabled={isLoading || !isMetaMaskInstalled()}
+          disabled={isLoading || !hasEthereumProvider()}
           className="w-full"
         >
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
