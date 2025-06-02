@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { CheckCircle2, ShieldCheck, User2, Wallet } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
-//import { buyTicket, cancelTicketListing, fetchTicketById, listTicketForResale, transferTicket } from "@/lib/actions"
+import { buyTicket, cancelTicketListing, fetchTicketById, listTicketForResale, transferTicket } from "@/lib/actions"
 import {
   Dialog,
   DialogContent,
