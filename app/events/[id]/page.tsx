@@ -28,7 +28,7 @@ export default function EventPage({ params }: { params: { id: string } }) {
 
   const checkWalletExists = async (walletAddress: string) => {
     const { data, error } = await supabase
-      .from("users")
+      .from("user_data")
       .select("wallet_address")
       .eq("wallet_address", walletAddress.toLowerCase()) // Convert input to lowercase
       .single()
