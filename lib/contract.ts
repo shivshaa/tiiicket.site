@@ -826,5 +826,5 @@ export const getAllTicketsForSale = async () => {
 
 // Function to cancel ticket listing (legacy compatibility)
 export const cancelTicketListing = async (ticketId: number) => {
-  return delistTicketFromSaleBlockchainFirst(ticketId)
+  return delistTicketFromSale(ticketId)
 }
