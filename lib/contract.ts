@@ -220,7 +220,7 @@ export const buyResaleTicket = async (
 }
 
 // List ticket for sale - BLOCKCHAIN FIRST
-export const listTicketForSaleBlockchainFirst = async (
+export const listTicketForSale = async (
   tokenId: number,
   priceInEth: string,
   sellerAddress: string,
@@ -549,7 +549,7 @@ export const mintTicket = async (
 
 // Legacy function for backward compatibility
 export const listTicketForSale = async (tokenId: number, price: string) => {
-  return listTicketForSaleBlockchainFirst(tokenId, price, "")
+  return listTicketForSale(tokenId, price, "")
 }
 
 // Legacy function for backward compatibility
