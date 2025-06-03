@@ -1,5 +1,3 @@
-//site-header
-
 "use client"
 
 import Link from "next/link"
@@ -36,8 +34,8 @@ export function SiteHeader() {
 
   const logoSrc =
     currentTheme === "dark"
-      ? "https://res.cloudinary.com/deximageapi/image/upload/v1746777300/tiiicket-black_jz4k3u.png"
-      : "https://res.cloudinary.com/deximageapi/image/upload/v1747073795/tiiicket-black-removebg-preview_emy3ex.png"
+      ? "https://res.cloudinary.com/deximageapi/image/upload/v1747073795/tiiicket-black-removebg-preview_emy3ex.png"
+      : "https://res.cloudinary.com/deximageapi/image/upload/v1746777300/tiiicket-white_l64f6g.png"
 
   const [isOpen, setIsOpen] = useState(false)
 
@@ -106,11 +104,11 @@ export function SiteHeader() {
           {isConnected || isAuthenticated ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex flex-col md:flex-row gap-1 md:gap-2 text-left">
+                <Button variant="outline" className="flex gap-2">
                   <Wallet className="h-4 w-4" />
-                  <div className="flex flex-col text-xs md:text-sm">
-                    <span>{user?.username || `${address?.slice(0, 6)}...${address?.slice(-4)}`}</span>
-                  </div>
+                  <span className="hidden md:inline-block">
+                    {user?.username || (address ? ${address.slice(0, 6)}...${address.slice(-4)} : "Account")}
+                  </span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
