@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useAuth } from "@/components/auth-provider"
-import {getWalletBalance, getCurrentNetwork} from "@/components/walletAuth"
 
 export function SiteHeader() {
   const { address, isConnected } = useWallet()
@@ -29,30 +28,7 @@ export function SiteHeader() {
   const { theme, systemTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
-  const [balance, setBalance] = useState<string>("0")
-  const [network, setNetwork] = useState<string>("")
-
   useEffect(() => {
-    const fetchWalletInfo = async () => {
-      if (typeof window === "undefined" || !window.ethereum) return
-
-      try {
-        const accounts = await window.ethereum.request({ method: "eth_accounts" })
-        if (accounts.length === 0) return
-
-        const address = accounts[0]
-        const walletBalance = await getWalletBalance(address)
-        const netInfo = await getCurrentNetwork()
-
-        setBalance(walletBalance)
-        setNetwork(netInfo?.name || "Unknown")
-      } catch (error) {
-        console.error("Failed to fetch wallet info:", error)
-      }
-    }
-
-    fetchWalletInfo()
-
     setMounted(true)
   }, [])
 
@@ -134,8 +110,6 @@ export function SiteHeader() {
                   <Wallet className="h-4 w-4" />
                   <div className="flex flex-col text-xs md:text-sm">
                     <span>{user?.username || `${address?.slice(0, 6)}...${address?.slice(-4)}`}</span>
-                    <span className="text-muted-foreground">{network}</span>
-                    <span className="text-green-600 font-medium">{parseFloat(balance).toFixed(4)} POL</span>
                   </div>
                 </Button>
               </DropdownMenuTrigger>
