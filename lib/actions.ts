@@ -8,7 +8,7 @@ import {
   getUserTickets,
   ethToInr,
   inrToEth
-} from "./contract"
+} from "@/lib/contract"
 
 // ✅ --- UTILITY FUNCTIONS ---
 
