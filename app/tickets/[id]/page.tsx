@@ -11,7 +11,14 @@ import { Badge } from "@/components/ui/badge"
 import { CheckCircle2, ShieldCheck, User2, Wallet } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
-import { buyTicket, cancelTicketListing, fetchTicketById, listTicketForResale, transferTicket } from "@/lib/actions"
+import {
+  fetchTicketById,
+  buyTicketBlockchainFirst,
+  listTicketForSaleBlockchainFirst,
+  delistTicketFromSaleBlockchainFirst,
+  transferTicketBlockchainFirst,
+  ethToInr,
+} from "@/lib/contract"
 import {
   Dialog,
   DialogContent,
@@ -32,7 +39,7 @@ interface Ticket {
   id: string
   token_id: number
   event_id: string
-  price: number // This should now be in ETH
+  price: number
   owner_address: string
   is_valid: boolean
   for_sale: boolean
@@ -103,6 +110,15 @@ const TicketDetails = () => {
     return `${price.toFixed(6)} ETH`
   }
 
+  // Format price with both ETH and INR
+  const formatPriceDisplay = (priceInEth: number) => {
+    const inrValue = ethToInr(priceInEth)
+    return {
+      eth: formatEthPrice(priceInEth),
+      inr: `₹${inrValue.toLocaleString("en-IN")}`,
+    }
+  }
+
   const handleBuyTicket = async () => {
     if (!ticket) {
       toast({
@@ -125,29 +141,18 @@ const TicketDetails = () => {
     setIsBuying(true)
 
     try {
-      const result = await buyTicket(
-        {
-          ticketId: ticket.id,
-          tokenId: ticket.token_id,
-          eventId: ticket.event_id,
-          buyerAddress: address,
-          price: ticket.price,
-        },
-        (status) => {
-          toast({
-            title: status.status === "success" ? "Success!" : "Status Update",
-            description: status.message,
-            variant: status.status === "error" ? "destructive" : "default",
-          })
-        },
-      )
+      const priceInEth = ticket.price.toString()
 
-      if (result.success) {
-        // Refresh ticket data
-        if (params.id) {
-          fetchTicket()
-        }
-      }
+      await buyTicketBlockchainFirst(ticket.token_id, priceInEth, address, (status) => {
+        toast({
+          title: status.status === "success" ? "Success!" : "Status Update",
+          description: status.message,
+          variant: status.status === "error" ? "destructive" : "default",
+        })
+      })
+
+      // Refresh ticket data after successful purchase
+      await fetchTicket()
     } catch (error: any) {
       console.error("Error buying ticket:", error)
       toast({
@@ -182,28 +187,16 @@ const TicketDetails = () => {
     setIsCancelling(true)
 
     try {
-      const result = await cancelTicketListing(
-        {
-          ticketId: ticket.id,
-          tokenId: ticket.token_id,
-          eventId: ticket.event_id,
-          sellerAddress: address,
-        },
-        (status) => {
-          toast({
-            title: status.status === "success" ? "Success!" : "Status Update",
-            description: status.message,
-            variant: status.status === "error" ? "destructive" : "default",
-          })
-        },
-      )
+      await delistTicketFromSaleBlockchainFirst(ticket.token_id, (status) => {
+        toast({
+          title: status.status === "success" ? "Success!" : "Status Update",
+          description: status.message,
+          variant: status.status === "error" ? "destructive" : "default",
+        })
+      })
 
-      if (result.success) {
-        // Refresh ticket data
-        if (params.id) {
-          fetchTicket()
-        }
-      }
+      // Refresh ticket data after successful cancellation
+      await fetchTicket()
     } catch (error: any) {
       console.error("Error cancelling listing:", error)
       toast({
@@ -258,30 +251,17 @@ const TicketDetails = () => {
     setIsTransferring(true)
 
     try {
-      const result = await transferTicket(
-        {
-          ticketId: ticket.id,
-          tokenId: ticket.token_id,
-          eventId: ticket.event_id,
-          fromAddress: address,
-          toAddress: transferAddress,
-        },
-        (status) => {
-          toast({
-            title: status.status === "success" ? "Success!" : "Status Update",
-            description: status.message,
-            variant: status.status === "error" ? "destructive" : "default",
-          })
-        },
-      )
+      await transferTicketBlockchainFirst(ticket.token_id, address, transferAddress, (status) => {
+        toast({
+          title: status.status === "success" ? "Success!" : "Status Update",
+          description: status.message,
+          variant: status.status === "error" ? "destructive" : "default",
+        })
+      })
 
-      if (result.success) {
-        // Refresh ticket data
-        if (params.id) {
-          fetchTicket()
-        }
-        setTransferAddress("")
-      }
+      // Refresh ticket data and clear transfer address
+      await fetchTicket()
+      setTransferAddress("")
     } catch (error: any) {
       console.error("Error transferring ticket:", error)
       toast({
@@ -351,35 +331,19 @@ const TicketDetails = () => {
     setIsListing(true)
 
     try {
-      const resalePriceInEth = Number.parseFloat(resalePriceEth)
+      await listTicketForSaleBlockchainFirst(ticket.token_id, resalePriceEth, address, (status) => {
+        toast({
+          title: status.status === "success" ? "Success!" : "Status Update",
+          description: status.message,
+          variant: status.status === "error" ? "destructive" : "default",
+        })
+      })
 
-      const result = await listTicketForResale(
-        {
-          ticketId: ticket.id,
-          tokenId: ticket.token_id,
-          eventId: ticket.event_id,
-          sellerAddress: address,
-          originalPrice: ticket.price,
-          resalePrice: resalePriceInEth, // Now in ETH directly
-        },
-        (status) => {
-          toast({
-            title: status.status === "success" ? "Success!" : "Status Update",
-            description: status.message,
-            variant: status.status === "error" ? "destructive" : "default",
-          })
-        },
-      )
-
-      if (result.success) {
-        setIsResaleDialogOpen(false)
-        setResalePriceEth("")
-        setResalePriceError("")
-        // Refresh ticket data
-        if (params.id) {
-          fetchTicket()
-        }
-      }
+      // Close dialog and refresh ticket data
+      setIsResaleDialogOpen(false)
+      setResalePriceEth("")
+      setResalePriceError("")
+      await fetchTicket()
     } catch (error: any) {
       console.error("Error listing ticket:", error)
       toast({
@@ -401,7 +365,7 @@ const TicketDetails = () => {
     }
   }
 
-  // Handle price input change
+  // Handle price input change with INR preview
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setResalePriceEth(value)
@@ -465,6 +429,8 @@ const TicketDetails = () => {
     )
   }
 
+  const priceDisplay = formatPriceDisplay(ticket.price)
+
   return (
     <div className="container mx-auto py-10">
       <Card>
@@ -491,7 +457,11 @@ const TicketDetails = () => {
               ) : (
                 <Badge variant="destructive">Invalid</Badge>
               )}
-              {ticket.for_sale && <Badge variant="default">For Sale: {formatEthPrice(ticket.price)}</Badge>}
+              {ticket.for_sale && (
+                <Badge variant="default">
+                  For Sale: {priceDisplay.eth} ({priceDisplay.inr})
+                </Badge>
+              )}
             </div>
           </div>
           <Separator />
@@ -547,7 +517,7 @@ const TicketDetails = () => {
                         <DialogHeader>
                           <DialogTitle>List Ticket for Resale</DialogTitle>
                           <DialogDescription>
-                            Set your resale price in ETH. The price will be used directly on the marketplace.
+                            Set your resale price in ETH. The price will be used directly on the blockchain marketplace.
                           </DialogDescription>
                         </DialogHeader>
                         <form onSubmit={handleListForResale} className="space-y-4">
@@ -569,11 +539,18 @@ const TicketDetails = () => {
                               </span>
                             </div>
                             {resalePriceError && <div className="text-sm text-red-500">{resalePriceError}</div>}
+                            {resalePriceEth && !resalePriceError && (
+                              <div className="text-sm text-muted-foreground">
+                                ≈ ₹{ethToInr(Number.parseFloat(resalePriceEth)).toLocaleString("en-IN")}
+                              </div>
+                            )}
                           </div>
                           <div className="bg-muted p-3 rounded-lg text-sm">
-                            <div className="font-medium mb-1">Original Price: {formatEthPrice(ticket.price)}</div>
+                            <div className="font-medium mb-1">
+                              Original Price: {priceDisplay.eth} ({priceDisplay.inr})
+                            </div>
                             <div className="text-muted-foreground">
-                              You can set any price for resale. Consider market demand and original pricing.
+                              Set your resale price. All transactions are processed on the blockchain first.
                             </div>
                           </div>
                           <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
@@ -618,11 +595,7 @@ const TicketDetails = () => {
               </>
             ) : (
               <Button className="w-full" onClick={handleBuyTicket} disabled={isBuying || !ticket.for_sale}>
-                {isBuying
-                  ? "Buying..."
-                  : ticket.for_sale
-                    ? `Buy Ticket (${formatEthPrice(ticket.price)})`
-                    : "Not for Sale"}
+                {isBuying ? "Buying..." : ticket.for_sale ? `Buy Ticket (${priceDisplay.eth})` : "Not for Sale"}
               </Button>
             )}
           </div>
@@ -630,9 +603,11 @@ const TicketDetails = () => {
         <CardFooter className="flex justify-between">
           <div className="flex items-center space-x-2">
             <ShieldCheck className="h-4 w-4" />
-            <span className="text-sm text-muted-foreground">Secure Ticket</span>
+            <span className="text-sm text-muted-foreground">Blockchain Secured</span>
           </div>
-          <span className="text-sm text-muted-foreground">Price: {formatEthPrice(ticket.price)}</span>
+          <span className="text-sm text-muted-foreground">
+            Price: {priceDisplay.eth} ({priceDisplay.inr})
+          </span>
         </CardFooter>
       </Card>
     </div>

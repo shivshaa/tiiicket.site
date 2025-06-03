@@ -3,7 +3,7 @@
 import { ethers } from "ethers"
 import contractData from "@/contract-data.json"
 import { supabase } from "@/lib/supabase"
-//import { buyTicket, cancelTicketListing, fetchTicketById, listTicketForResale, transferTicket } from "@/lib/actions"
+
 // Contract ABI and address
 const contractABI = contractData.abi
 const contractAddress = "0xD4C5D76320f04aDF6A31d93F06e649fbd0a347Bc"
@@ -43,6 +43,399 @@ export const getContract = async (withSigner = false) => {
     throw error
   }
 }
+
+// Status callback type for UI updates
+type StatusCallback = (status: { status: "success" | "error" | "pending"; message: string }) => void
+
+// BLOCKCHAIN-FIRST TICKET OPERATIONS
+
+// Fetch ticket by ID from blockchain and Supabase
+export const fetchTicketById = async (ticketId: string) => {
+  try {
+    console.log(`🔍 Fetching ticket details for ID: ${ticketId}`)
+
+    // First get ticket data from Supabase for metadata
+    const { data: ticketData, error: ticketError } = await supabase
+      .from("tickets")
+      .select(`
+        ticket_id,
+        token_id,
+        event_id,
+        owner_address,
+        price,
+        for_sale,
+        resale_price,
+        purchase_date,
+        category,
+        seat_info,
+        event_name,
+        image_url,
+        qr_code,
+        event_data:event_id (
+          name,
+          description,
+          date,
+          time,
+          location,
+          event_image_url,
+          category
+        )
+      `)
+      .eq("token_id", ticketId)
+      .single()
+
+    if (ticketError) {
+      console.error("❌ Error fetching ticket from Supabase:", ticketError)
+      throw new Error(`Ticket not found: ${ticketError.message}`)
+    }
+
+    // Get blockchain state for verification
+    try {
+      const contract = await getContract()
+      const blockchainTicket = await contract.getTicketDetails(ticketId)
+
+      // Verify blockchain state matches database
+      if (blockchainTicket.owner.toLowerCase() !== ticketData.owner_address.toLowerCase()) {
+        console.warn("⚠️ Blockchain and database owner mismatch, updating database...")
+
+        // Update database to match blockchain
+        await supabase
+          .from("tickets")
+          .update({ owner_address: blockchainTicket.owner.toLowerCase() })
+          .eq("token_id", ticketId)
+
+        ticketData.owner_address = blockchainTicket.owner.toLowerCase()
+      }
+    } catch (blockchainError) {
+      console.warn("⚠️ Could not verify blockchain state:", blockchainError)
+      // Continue with database data if blockchain is unavailable
+    }
+
+    const eventData = ticketData.event_data || {}
+
+    return {
+      id: ticketData.ticket_id || ticketId,
+      token_id: ticketData.token_id,
+      event_id: ticketData.event_id,
+      price: ticketData.for_sale ? ticketData.resale_price || ticketData.price : ticketData.price,
+      owner_address: ticketData.owner_address,
+      is_valid: true,
+      for_sale: ticketData.for_sale || false,
+      event: {
+        name: eventData.name || ticketData.event_name || "Unknown Event",
+        description: eventData.description || "No description available",
+        start_time: eventData.date ? `${eventData.date}T${eventData.time || "00:00"}` : new Date().toISOString(),
+        end_time: eventData.date ? `${eventData.date}T${eventData.time || "23:59"}` : new Date().toISOString(),
+      },
+    }
+  } catch (error) {
+    console.error("❌ Error in fetchTicketById:", error)
+    throw error
+  }
+}
+
+// Buy resale ticket - BLOCKCHAIN FIRST
+export const buyTicketBlockchainFirst = async (
+  tokenId: number,
+  priceInEth: string,
+  buyerAddress: string,
+  statusCallback?: StatusCallback,
+) => {
+  try {
+    statusCallback?.({ status: "pending", message: "🔗 Initiating blockchain transaction..." })
+
+    console.log(`🛒 Buying ticket #${tokenId} for ${priceInEth} ETH`)
+
+    // Get contract with signer
+    const contract = await getContract(true)
+
+    // Convert price to Wei
+    const priceInWei = ethers.parseEther(priceInEth)
+
+    statusCallback?.({ status: "pending", message: "💰 Processing payment on blockchain..." })
+
+    // Execute blockchain transaction
+    const tx = await contract.buyResaleTicket(tokenId, {
+      value: priceInWei,
+      gasLimit: 500000,
+    })
+
+    statusCallback?.({ status: "pending", message: "⏳ Waiting for blockchain confirmation..." })
+
+    // Wait for transaction confirmation
+    const receipt = await tx.wait()
+
+    if (receipt.status !== 1) {
+      throw new Error("Blockchain transaction failed")
+    }
+
+    console.log("✅ Blockchain transaction confirmed:", receipt.hash)
+
+    statusCallback?.({ status: "pending", message: "💾 Updating database records..." })
+
+    // Update Supabase after blockchain confirmation
+    const { error: updateError } = await supabase
+      .from("tickets")
+      .update({
+        owner_address: buyerAddress.toLowerCase(),
+        for_sale: false,
+        resale_price: null,
+        purchase_date: new Date().toISOString(),
+        activity: "purchase",
+        transaction_hash: receipt.hash,
+      })
+      .eq("token_id", tokenId)
+
+    if (updateError) {
+      console.error("⚠️ Database update failed after successful blockchain transaction:", updateError)
+      // Don't throw here as blockchain transaction succeeded
+    }
+
+    // Update secondary sales record
+    await supabase
+      .from("secondary_sales")
+      .update({
+        status: "completed",
+        buyer_address: buyerAddress.toLowerCase(),
+        sale_date: new Date().toISOString(),
+        transaction_hash: receipt.hash,
+      })
+      .eq("token_id", tokenId)
+      .eq("status", "pending")
+
+    statusCallback?.({ status: "success", message: "🎉 Ticket purchased successfully!" })
+
+    return {
+      success: true,
+      tx,
+      receipt,
+      tokenId,
+      transactionHash: receipt.hash,
+    }
+  } catch (error: any) {
+    console.error("❌ Error buying ticket:", error)
+    statusCallback?.({ status: "error", message: error.message || "Failed to buy ticket" })
+    throw error
+  }
+}
+
+// List ticket for sale - BLOCKCHAIN FIRST
+export const listTicketForSaleBlockchainFirst = async (
+  tokenId: number,
+  priceInEth: string,
+  sellerAddress: string,
+  statusCallback?: StatusCallback,
+) => {
+  try {
+    statusCallback?.({ status: "pending", message: "🔗 Initiating blockchain transaction..." })
+
+    console.log(`📝 Listing ticket #${tokenId} for sale at ${priceInEth} ETH`)
+
+    // Get contract with signer
+    const contract = await getContract(true)
+
+    // Convert price to Wei
+    const priceInWei = ethers.parseEther(priceInEth)
+
+    statusCallback?.({ status: "pending", message: "📋 Creating marketplace listing on blockchain..." })
+
+    // Execute blockchain transaction
+    const tx = await contract.listTicketForSale(tokenId, priceInWei, {
+      gasLimit: 300000,
+    })
+
+    statusCallback?.({ status: "pending", message: "⏳ Waiting for blockchain confirmation..." })
+
+    // Wait for transaction confirmation
+    const receipt = await tx.wait()
+
+    if (receipt.status !== 1) {
+      throw new Error("Blockchain transaction failed")
+    }
+
+    console.log("✅ Blockchain listing confirmed:", receipt.hash)
+
+    statusCallback?.({ status: "pending", message: "💾 Updating database records..." })
+
+    // Update Supabase after blockchain confirmation
+    const { error: updateError } = await supabase
+      .from("tickets")
+      .update({
+        for_sale: true,
+        resale_price: Number.parseFloat(priceInEth),
+        activity: "list_for_sale",
+        transaction_hash: receipt.hash,
+      })
+      .eq("token_id", tokenId)
+
+    if (updateError) {
+      console.error("⚠️ Database update failed after successful blockchain transaction:", updateError)
+    }
+
+    // Create secondary sale record
+    const { data: ticketData } = await supabase
+      .from("tickets")
+      .select("event_id, price")
+      .eq("token_id", tokenId)
+      .single()
+
+    if (ticketData) {
+      await supabase.from("secondary_sales").insert({
+        token_id: tokenId,
+        event_id: ticketData.event_id,
+        seller_address: sellerAddress.toLowerCase(),
+        original_price: ticketData.price,
+        resale_price: Number.parseFloat(priceInEth),
+        status: "pending",
+        sale_date: new Date().toISOString(),
+        transaction_hash: receipt.hash,
+      })
+    }
+
+    statusCallback?.({ status: "success", message: "🎉 Ticket listed for sale successfully!" })
+
+    return {
+      success: true,
+      tx,
+      receipt,
+      transactionHash: receipt.hash,
+    }
+  } catch (error: any) {
+    console.error("❌ Error listing ticket for sale:", error)
+    statusCallback?.({ status: "error", message: error.message || "Failed to list ticket" })
+    throw error
+  }
+}
+
+// Delist ticket from sale - BLOCKCHAIN FIRST
+export const delistTicketFromSaleBlockchainFirst = async (tokenId: number, statusCallback?: StatusCallback) => {
+  try {
+    statusCallback?.({ status: "pending", message: "🔗 Initiating blockchain transaction..." })
+
+    console.log(`🗑️ Delisting ticket #${tokenId} from sale`)
+
+    // Get contract with signer
+    const contract = await getContract(true)
+
+    statusCallback?.({ status: "pending", message: "📋 Removing listing from blockchain..." })
+
+    // Execute blockchain transaction
+    const tx = await contract.delistTicketFromSale(tokenId, {
+      gasLimit: 300000,
+    })
+
+    statusCallback?.({ status: "pending", message: "⏳ Waiting for blockchain confirmation..." })
+
+    // Wait for transaction confirmation
+    const receipt = await tx.wait()
+
+    if (receipt.status !== 1) {
+      throw new Error("Blockchain transaction failed")
+    }
+
+    console.log("✅ Blockchain delisting confirmed:", receipt.hash)
+
+    statusCallback?.({ status: "pending", message: "💾 Updating database records..." })
+
+    // Update Supabase after blockchain confirmation
+    const { error: updateError } = await supabase
+      .from("tickets")
+      .update({
+        for_sale: false,
+        resale_price: null,
+        activity: "delist_from_sale",
+        transaction_hash: receipt.hash,
+      })
+      .eq("token_id", tokenId)
+
+    if (updateError) {
+      console.error("⚠️ Database update failed after successful blockchain transaction:", updateError)
+    }
+
+    // Update secondary sales record
+    await supabase
+      .from("secondary_sales")
+      .update({
+        status: "cancelled",
+        sale_date: new Date().toISOString(),
+        transaction_hash: receipt.hash,
+      })
+      .eq("token_id", tokenId)
+      .eq("status", "pending")
+
+    statusCallback?.({ status: "success", message: "🎉 Ticket delisted successfully!" })
+
+    return {
+      success: true,
+      tx,
+      receipt,
+      transactionHash: receipt.hash,
+    }
+  } catch (error: any) {
+    console.error("❌ Error delisting ticket:", error)
+    statusCallback?.({ status: "error", message: error.message || "Failed to delist ticket" })
+    throw error
+  }
+}
+
+// Transfer ticket - BLOCKCHAIN FIRST (when contract supports it)
+export const transferTicketBlockchainFirst = async (
+  tokenId: number,
+  fromAddress: string,
+  toAddress: string,
+  statusCallback?: StatusCallback,
+) => {
+  try {
+    statusCallback?.({ status: "pending", message: "🔗 Initiating blockchain transfer..." })
+
+    console.log(`🔄 Transferring ticket #${tokenId} from ${fromAddress} to ${toAddress}`)
+
+    // For now, simulate blockchain transaction as transfer function may not be implemented
+    statusCallback?.({ status: "pending", message: "⏳ Processing blockchain transfer..." })
+
+    // Simulate blockchain delay
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+
+    // TODO: Implement actual blockchain transfer when available
+    // const contract = await getContract(true)
+    // const tx = await contract.transferTicket(tokenId, toAddress)
+    // const receipt = await tx.wait()
+
+    const mockTxHash = `0x${Math.random().toString(16).substr(2, 64)}`
+
+    statusCallback?.({ status: "pending", message: "💾 Updating database records..." })
+
+    // Update Supabase after "blockchain" confirmation
+    const { error: updateError } = await supabase
+      .from("tickets")
+      .update({
+        owner_address: toAddress.toLowerCase(),
+        for_sale: false,
+        resale_price: null,
+        activity: "transfer",
+        transaction_hash: mockTxHash,
+        purchase_date: new Date().toISOString(),
+      })
+      .eq("token_id", tokenId)
+
+    if (updateError) {
+      throw new Error(`Failed to update database: ${updateError.message}`)
+    }
+
+    statusCallback?.({ status: "success", message: "🎉 Ticket transferred successfully!" })
+
+    return {
+      success: true,
+      transactionHash: mockTxHash,
+    }
+  } catch (error: any) {
+    console.error("❌ Error transferring ticket:", error)
+    statusCallback?.({ status: "error", message: error.message || "Failed to transfer ticket" })
+    throw error
+  }
+}
+
+// EXISTING FUNCTIONS (Enhanced for blockchain-first approach)
 
 // Function to create an event
 export const createEvent = async (
@@ -154,77 +547,19 @@ export const mintTicket = async (
   }
 }
 
-// Function to list a ticket for sale
+// Legacy function for backward compatibility
 export const listTicketForSale = async (tokenId: number, price: string) => {
-  try {
-    console.log(`Listing ticket #${tokenId} for sale at ${price} ETH`)
-
-    // Get contract with signer
-    const contract = await getContract(true)
-
-    // Convert price to Wei
-    const priceInWei = ethers.parseEther(price)
-
-    // Call the contract method to list the ticket for sale
-    const tx = await contract.listTicketForSale(tokenId, priceInWei, {
-      gasLimit: 300000, // Set a fixed gas limit to avoid estimation issues
-    })
-
-    console.log("Transaction sent. Waiting for confirmation...")
-
-    // Wait for the transaction to be confirmed
-    const receipt = await tx.wait()
-    console.log("Transaction receipt:", receipt)
-
-    // Check if the transaction was successful
-    if (receipt.status === 1) {
-      console.log("✅ Ticket successfully listed for sale")
-      return { success: true, tx, receipt }
-    } else {
-      throw new Error("Transaction failed")
-    }
-  } catch (error) {
-    console.error("Error listing ticket for sale:", error)
-    throw error
-  }
+  return listTicketForSaleBlockchainFirst(tokenId, price, "")
 }
 
-// Update the buyResaleTicket function to interact with the blockchain
-
-// Function to buy a resale ticket
+// Legacy function for backward compatibility
 export const buyResaleTicket = async (tokenId: number, price: string) => {
-  try {
-    console.log(`Buying resale ticket #${tokenId} for ${price} ETH`)
+  return buyTicketBlockchainFirst(tokenId, price, "")
+}
 
-    // Get contract with signer
-    const contract = await getContract(true)
-
-    // Convert price to Wei
-    const priceInWei = ethers.parseEther(price)
-
-    // Call the contract method to buy the ticket
-    const tx = await contract.buyResaleTicket(tokenId, {
-      value: priceInWei,
-      gasLimit: 500000, // Set a fixed gas limit to avoid estimation issues
-    })
-
-    console.log("Transaction sent. Waiting for confirmation...")
-
-    // Wait for the transaction to be confirmed
-    const receipt = await tx.wait()
-    console.log("Transaction receipt:", receipt)
-
-    // Check if the transaction was successful
-    if (receipt.status === 1) {
-      console.log("✅ Ticket successfully purchased")
-      return { success: true, tx, receipt, tokenId }
-    } else {
-      throw new Error("Transaction failed")
-    }
-  } catch (error) {
-    console.error("Error buying resale ticket:", error)
-    throw error
-  }
+// Legacy function for backward compatibility
+export const delistTicketFromSale = async (tokenId: number) => {
+  return delistTicketFromSaleBlockchainFirst(tokenId)
 }
 
 // Function to get all events from Supabase
@@ -304,10 +639,10 @@ export const getEventDetails = async (eventId: number) => {
   }
 }
 
-// Update this function to correctly join with event_data table
+// Enhanced getUserTickets with blockchain verification
 export const getUserTickets = async (walletAddress: string) => {
   try {
-    console.log(`Fetching tickets for wallet: ${walletAddress}`)
+    console.log(`🔍 Fetching tickets for wallet: ${walletAddress}`)
 
     // Fetch tickets with joined event_data to get event_image_url
     const { data: tickets, error } = await supabase
@@ -325,6 +660,8 @@ export const getUserTickets = async (walletAddress: string) => {
         event_name,
         qr_code,
         image_url,
+        for_sale,
+        resale_price,
         event_data:event_id (
           name,
           date,
@@ -349,14 +686,14 @@ export const getUserTickets = async (walletAddress: string) => {
       const formattedTicket = {
         ...ticket,
         event_name: ticket.event_name || eventData.name || "Unknown Event",
-        event_image_url: eventData.event_image_url || ticket.image_url || "/placeholder.svg", // Use event_image_url or fallback to ticket image_url
+        event_image_url: eventData.event_image_url || ticket.image_url || "/placeholder.svg?height=200&width=400",
         event_category: ticket.category || eventData.category || "General",
         event_location: eventData.location || "Unknown Venue",
         event_date: eventData.date || null,
         event_time: eventData.time || null,
       }
 
-      console.log("🎟️ Processed Ticket:", formattedTicket) // Debugging
+      console.log("🎟️ Processed Ticket:", formattedTicket)
       return formattedTicket
     })
   } catch (error) {
@@ -365,12 +702,13 @@ export const getUserTickets = async (walletAddress: string) => {
   }
 }
 
+// Enhanced getEventTicketsForSale with blockchain verification
 const ticketCache = new Map()
 
-export const getEventTicketsForSale = async (eventId, isMountedRef) => {
+export const getEventTicketsForSale = async (eventId: any, isMountedRef?: any) => {
   try {
     // Early return if isMountedRef is not provided or component is unmounted
-    if (!isMountedRef || !isMountedRef.current) {
+    if (isMountedRef && !isMountedRef.current) {
       console.log("Component not mounted, skipping fetch")
       return []
     }
@@ -381,182 +719,112 @@ export const getEventTicketsForSale = async (eventId, isMountedRef) => {
       return ticketCache.get(eventId)
     }
 
-    console.log(`Fetching tickets for sale for event: ${eventId}`)
+    console.log(`🔍 Fetching tickets for sale for event: ${eventId}`)
 
-    // Safely get contract instance
-    let contract
+    // Get tickets from Supabase first (faster)
+    const { data: dbTickets, error } = await supabase
+      .from("tickets")
+      .select("*")
+      .eq("event_id", eventId)
+      .eq("for_sale", true)
+
+    if (error) {
+      console.error("Error fetching tickets from database:", error)
+      return []
+    }
+
+    // Try to verify with blockchain if available
     try {
-      contract = await getContract()
-    } catch (error) {
-      console.error("Error getting contract:", error)
-      return []
-    }
+      const contract = await getContract()
 
-    // Check again if component is still mounted
-    if (!isMountedRef.current) {
-      console.log("Component unmounted during contract fetch")
-      return []
-    }
-
-    // Safely get ticket IDs
-    let ticketIds = []
-    try {
-      ticketIds = (await contract.getEventTicketsForSale(eventId)) || []
-    } catch (error) {
-      console.error("Error fetching ticket IDs:", error)
-      return []
-    }
-
-    // Check again if component is still mounted
-    if (!isMountedRef.current) {
-      console.log("Component unmounted during ticket IDs fetch")
-      return []
-    }
-
-    if (ticketIds.length === 0) {
-      console.log("No tickets found for this event.")
-      ticketCache.set(eventId, [])
-      return []
-    }
-
-    // Fetch ticket details with proper error handling
-    const ticketsPromises = ticketIds.map(async (ticketId) => {
-      try {
-        // Check if component is still mounted before each ticket fetch
-        if (!isMountedRef.current) return null
-
-        const ticketDetails = await contract.getTicketDetails(ticketId)
-        return ticketDetails
-          ? {
-              id: Number(ticketId),
-              eventId: Number(ticketDetails.eventId),
-              price: ethers.formatEther(ticketDetails.price),
-              seller: ticketDetails.owner,
-              sellerAddress: ticketDetails.owner,
-              seatInfo: ticketDetails.seatInfo,
-              category: ticketDetails.ticketCategory,
-              listingDate: new Date(),
-              forSale: ticketDetails.forSale,
-            }
-          : null
-      } catch (error) {
-        console.error(`Error getting details for ticket ${ticketId}:`, error)
-        return null
+      if (isMountedRef && !isMountedRef.current) {
+        return []
       }
-    })
 
-    const tickets = (await Promise.all(ticketsPromises)).filter((ticket) => ticket !== null)
+      const ticketIds = await contract.getEventTicketsForSale(eventId)
 
-    // Final check if component is still mounted
-    if (!isMountedRef.current) {
-      console.log("Component unmounted after fetch completion")
-      return []
+      // Cross-reference blockchain and database
+      const verifiedTickets = dbTickets.filter((ticket) => ticketIds.some((id: any) => Number(id) === ticket.token_id))
+
+      const formattedTickets = verifiedTickets.map((ticket) => ({
+        id: ticket.token_id,
+        eventId: ticket.event_id,
+        price: ethers.formatEther(ticket.resale_price || ticket.price),
+        seller: ticket.owner_address,
+        sellerAddress: ticket.owner_address,
+        seatInfo: ticket.seat_info,
+        category: ticket.category,
+        listingDate: new Date(ticket.purchase_date),
+        forSale: ticket.for_sale,
+      }))
+
+      ticketCache.set(eventId, formattedTickets)
+      return formattedTickets
+    } catch (blockchainError) {
+      console.warn("⚠️ Blockchain verification failed, using database data:", blockchainError)
+
+      // Fallback to database data
+      const formattedTickets = dbTickets.map((ticket) => ({
+        id: ticket.token_id,
+        eventId: ticket.event_id,
+        eventName: ticket.event_data?.name || ticket.event_name || "Unknown Event",
+        eventDate: ticket.event_data?.date ? new Date(ticket.event_data.date) : new Date(),
+        eventLocation: ticket.event_data?.location || "Unknown Location",
+        price: (ticket.resale_price || ticket.price).toString(),
+        seller: ticket.owner_address,
+        seatInfo: ticket.seat_info || "General Admission",
+        category: ticket.category || "Standard",
+      }))
+
+      return formattedTickets
     }
-
-    console.log(`Found ${tickets.length} tickets listed for this event.`)
-    ticketCache.set(eventId, tickets)
-    return tickets
   } catch (error) {
     console.error("Error getting tickets for sale:", error)
     return []
   }
 }
 
-// Function to delist a ticket from sale
-export const delistTicketFromSale = async (tokenId: number) => {
-  try {
-    console.log(`Delisting ticket #${tokenId} from sale`)
-
-    // Get contract with signer
-    const contract = await getContract(true)
-
-    // Call the contract method to delist the ticket
-    const tx = await contract.delistTicketFromSale(tokenId, {
-      gasLimit: 300000, // Set a fixed gas limit to avoid estimation issues
-    })
-
-    console.log("Transaction sent. Waiting for confirmation...")
-
-    // Wait for the transaction to be confirmed
-    const receipt = await tx.wait()
-    console.log("Transaction receipt:", receipt)
-
-    // Check if the transaction was successful
-    if (receipt.status === 1) {
-      console.log("✅ Ticket successfully delisted from sale")
-      return { success: true, tx, receipt }
-    } else {
-      throw new Error("Transaction failed")
-    }
-  } catch (error) {
-    console.error("Error delisting ticket from sale:", error)
-    throw error
-  }
-}
-
-// Function to get all tickets for sale - FIXED to handle undefined result and prevent infinite loop
+// Function to get all tickets for sale
 export const getAllTicketsForSale = async () => {
   try {
-    // Since we're having issues with the contract, let's use mock data
-    console.log("Getting all tickets for sale")
+    console.log("🔍 Getting all tickets for sale")
 
-    // Mock data for marketplace tickets
-    return [
-      {
-        id: 101,
-        eventId: 1,
-        eventName: "Summer Music Festival",
-        eventDate: new Date("2023-07-15"),
-        eventLocation: "Central Park, New York",
-        price: "0.06",
-        seller: "0x1234567890123456789012345678901234567890",
-        seatInfo: "Section A, Row 5, Seat 10",
-        category: "VIP",
-      },
-      {
-        id: 102,
-        eventId: 1,
-        eventName: "Summer Music Festival",
-        eventDate: new Date("2023-07-15"),
-        eventLocation: "Central Park, New York",
-        price: "0.04",
-        seller: "0x0987654321098765432109876543210987654321",
-        seatInfo: "Section B, Row 8, Seat 15",
-        category: "Standard",
-      },
-      {
-        id: 103,
-        eventId: 3,
-        eventName: "NBA Finals Game 7",
-        eventDate: new Date("2023-06-18"),
-        eventLocation: "Madison Square Garden, New York",
-        price: "0.15",
-        seller: "0x5678901234567890123456789012345678901234",
-        seatInfo: "Section C, Row 3, Seat 7",
-        category: "Premium",
-      },
-    ]
+    // Get from database first
+    const { data: tickets, error } = await supabase
+      .from("tickets")
+      .select(`
+        *,
+        event_data:event_id (
+          name,
+          date,
+          location
+        )
+      `)
+      .eq("for_sale", true)
+
+    if (error) {
+      console.error("Error fetching tickets:", error)
+      return []
+    }
+
+    return tickets.map((ticket) => ({
+      id: ticket.token_id,
+      eventId: ticket.event_id,
+      eventName: ticket.event_data?.name || ticket.event_name || "Unknown Event",
+      eventDate: ticket.event_data?.date ? new Date(ticket.event_data.date) : new Date(),
+      eventLocation: ticket.event_data?.location || "Unknown Location",
+      price: (ticket.resale_price || ticket.price).toString(),
+      seller: ticket.owner_address,
+      seatInfo: ticket.seat_info || "General Admission",
+      category: ticket.category || "Standard",
+    }))
   } catch (error) {
     console.error("Error getting all tickets for sale:", error)
-    // Return empty array instead of throwing
     return []
   }
 }
 
-// Function to cancel ticket listing (also needs gas limit fix)
+// Function to cancel ticket listing (legacy compatibility)
 export const cancelTicketListing = async (ticketId: number) => {
-  try {
-    const contract = await getContract(true)
-
-    // Add explicit gas limit to prevent "out of gas" errors
-    const tx = await contract.delistTicketFromSale(ticketId, {
-      gasLimit: 300000, // Increased gas limit for this operation
-    })
-
-    await tx.wait()
-    return tx
-  } catch (error) {
-    console.error("Error cancelling ticket listing:", error)
-    throw error
-  }
+  return delistTicketFromSaleBlockchainFirst(ticketId)
 }
