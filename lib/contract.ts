@@ -308,7 +308,7 @@ export const listTicketForSale = async (
 }
 
 // Delist ticket from sale - BLOCKCHAIN FIRST
-export const delistTicketFromSaleBlockchainFirst = async (tokenId: number, statusCallback?: StatusCallback) => {
+export const delistTicketFromSale = async (tokenId: number, statusCallback?: StatusCallback) => {
   try {
     statusCallback?.({ status: "pending", message: "🔗 Initiating blockchain transaction..." })
 
@@ -559,7 +559,7 @@ export const buyResaleTicket = async (tokenId: number, price: string) => {
 
 // Legacy function for backward compatibility
 export const delistTicketFromSale = async (tokenId: number) => {
-  return delistTicketFromSaleBlockchainFirst(tokenId)
+  return delistTicketFromSale(tokenId)
 }
 
 // Function to get all events from Supabase
