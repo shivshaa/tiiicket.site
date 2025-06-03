@@ -13,9 +13,9 @@ import { cn } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
 import {
   fetchTicketById,
-  buyTicketBlockchainFirst,
-  listTicketForSaleBlockchainFirst,
-  delistTicketFromSaleBlockchainFirst,
+  buyResaleTicket,
+  listTicketForSale,
+  delistTicketFromSale,
   transferTicketBlockchainFirst,
   ethToInr,
 } from "@/lib/contract"
