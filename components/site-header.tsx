@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useAuth } from "@/components/auth-provider"
+import {getWalletBalance, getCurrentNetwork} from "@/components/walletAuth"
 
 export function SiteHeader() {
   const { address, isConnected } = useWallet()
