@@ -18,10 +18,19 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useAuth } from "@/components/auth-provider"
+import { supabase } from "@/lib/supabase"
+
+interface UserProfile {
+  username: string
+  email: string
+  wallet_address: string
+}
 
 export function SiteHeader() {
   const { address, isConnected } = useWallet()
   const { user, isAuthenticated, signOut } = useAuth()
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+  const [loading, setLoading] = useState(false)
 
   const { theme, systemTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
@@ -29,6 +38,39 @@ export function SiteHeader() {
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Fetch user profile when wallet is connected
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!address || !isConnected) {
+        setUserProfile(null)
+        return
+      }
+
+      setLoading(true)
+      try {
+        const { data, error } = await supabase
+          .from("user_data")
+          .select("username, email, wallet_address")
+          .eq("wallet_address", address.toLowerCase())
+          .single()
+
+        if (error) {
+          console.log("User profile not found, using wallet address")
+          setUserProfile(null)
+        } else {
+          setUserProfile(data)
+        }
+      } catch (error) {
+        console.error("Error fetching user profile:", error)
+        setUserProfile(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchUserProfile()
+  }, [address, isConnected])
 
   const currentTheme = theme === "system" ? systemTheme : theme
 
@@ -39,6 +81,14 @@ export function SiteHeader() {
 
   const [isOpen, setIsOpen] = useState(false)
 
+  const getDisplayName = () => {
+    if (loading) return "Loading..."
+    if (userProfile?.username) return userProfile.username
+    if (user?.username) return user.username
+    if (address) return `${address.slice(0, 6)}...${address.slice(-4)}`
+    return "Account"
+  }
+
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background">
       <div className="container flex h-16 items-center justify-between">
@@ -46,13 +96,7 @@ export function SiteHeader() {
           <Link href="/" className="flex items-center">
             <div className="relative">
               {mounted && (
-                <Image
-                  src={logoSrc}
-                  alt="tiiicket logo"
-                  width={140}
-                  height={90}
-                  priority
-                />
+                <Image src={logoSrc || "/placeholder.svg"} alt="tiiicket logo" width={140} height={90} priority />
               )}
             </div>
           </Link>
@@ -61,7 +105,10 @@ export function SiteHeader() {
         <div className="hidden md:flex items-center justify-center flex-1 gap-8">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex flex-col items-center h-auto py-2 hover:bg-green-500 hover:text-white">
+              <Button
+                variant="ghost"
+                className="flex flex-col items-center h-auto py-2 hover:bg-green-500 hover:text-white"
+              >
                 <Compass className="h-6 w-6 mb-1" />
                 <span className="text-xs font-medium">Events</span>
               </Button>
@@ -106,9 +153,7 @@ export function SiteHeader() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="flex gap-2">
                   <Wallet className="h-4 w-4" />
-                  <span className="hidden md:inline-block">
-                    {user?.username || (address ? ${address.slice(0, 6)}...${address.slice(-4)} : "Account")}
-                  </span>
+                  <span className="hidden md:inline-block">{getDisplayName()}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -129,7 +174,7 @@ export function SiteHeader() {
             </DropdownMenu>
           ) : (
             <div className="flex items-center gap-2">
-              <Button variant="outline h-6 w-6 mb-1" asChild>
+              <Button variant="outline" asChild>
                 <Link href="/sign-in">Sign In</Link>
               </Button>
               <Button variant="default" asChild>
@@ -189,3 +234,6 @@ export function SiteHeader() {
     </header>
   )
 }
+
+// Default export for compatibility
+export default SiteHeader
