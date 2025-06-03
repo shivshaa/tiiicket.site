@@ -808,8 +808,3 @@ export const getAllTicketsForSale = async () => {
     return []
   }
 }
-
-// Function to cancel ticket listing (legacy compatibility)
-export const cancelTicketListing = async (ticketId: number) => {
-  return delistTicketFromSale(ticketId)
-}
