@@ -36,7 +36,7 @@ export function SiteHeader() {
 
   const logoSrc =
     currentTheme === "dark"
-      ? "https://res.cloudinary.com/deximageapi/image/upload/v1746777300/tiiicket-white_l64f6g.png"
+      ? "https://res.cloudinary.com/deximageapi/image/upload/v1746777300/tiiicket-black_jz4k3u.png"
       : "https://res.cloudinary.com/deximageapi/image/upload/v1747073795/tiiicket-black-removebg-preview_emy3ex.png"
 
   const [isOpen, setIsOpen] = useState(false)
