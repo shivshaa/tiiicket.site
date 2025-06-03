@@ -1,4 +1,4 @@
-//Filename: contract
+//Filename: contract.ts
 
 import { ethers } from "ethers"
 import contractData from "@/contract-data.json"
