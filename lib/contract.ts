@@ -547,21 +547,6 @@ export const mintTicket = async (
   }
 }
 
-// Legacy function for backward compatibility
-export const listTicketForSale = async (tokenId: number, price: string) => {
-  return listTicketForSale(tokenId, price, "")
-}
-
-// Legacy function for backward compatibility
-export const buyResaleTicket = async (tokenId: number, price: string) => {
-  return buyResaleTicket(tokenId, price, "")
-}
-
-// Legacy function for backward compatibility
-export const delistTicketFromSale = async (tokenId: number) => {
-  return delistTicketFromSale(tokenId)
-}
-
 // Function to get all events from Supabase
 export const getAllEvents = async () => {
   try {
