@@ -48,7 +48,7 @@ const TicketDetails = () => {
   const params = useParams()
   const router = useRouter()
   const { toast } = useToast()
-  const { address, isConnected } = useWallet() // Make sure to destructure isConnected
+  const { address, isConnected } = useWallet()
 
   const [ticket, setTicket] = useState<Ticket | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -86,6 +86,7 @@ const TicketDetails = () => {
       const ticket = await fetchTicketById(params.id as string)
       setTicket(ticket)
     } catch (error: any) {
+      console.error("Error fetching ticket:", error)
       toast({
         title: "Error",
         description: error.message || "Failed to fetch ticket",
@@ -148,6 +149,7 @@ const TicketDetails = () => {
         }
       }
     } catch (error: any) {
+      console.error("Error buying ticket:", error)
       toast({
         title: "Error",
         description: error.message || "Failed to buy ticket",
@@ -203,6 +205,7 @@ const TicketDetails = () => {
         }
       }
     } catch (error: any) {
+      console.error("Error cancelling listing:", error)
       toast({
         title: "Error",
         description: error.message || "Failed to cancel ticket listing",
@@ -280,6 +283,7 @@ const TicketDetails = () => {
         setTransferAddress("")
       }
     } catch (error: any) {
+      console.error("Error transferring ticket:", error)
       toast({
         title: "Error",
         description: error.message || "Failed to transfer ticket",
@@ -426,17 +430,17 @@ const TicketDetails = () => {
               <h3 className="text-lg font-medium">
                 <Skeleton className="h-6 w-48" />
               </h3>
-              <p className="text-sm text-muted-foreground">
+              <div className="text-sm text-muted-foreground">
                 <Skeleton className="h-4 w-64" />
-              </p>
+              </div>
             </div>
             <div className="space-y-2">
               <h3 className="text-lg font-medium">
                 <Skeleton className="h-6 w-48" />
               </h3>
-              <p className="text-sm text-muted-foreground">
+              <div className="text-sm text-muted-foreground">
                 <Skeleton className="h-4 w-64" />
-              </p>
+              </div>
             </div>
           </CardContent>
           <CardFooter className="flex justify-between">
@@ -471,9 +475,9 @@ const TicketDetails = () => {
         <CardContent className="grid gap-4">
           <div className="space-y-2">
             <h3 className="text-lg font-medium">Event Details</h3>
-            <p className="text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground">
               {new Date(ticket.event.start_time).toLocaleString()} - {new Date(ticket.event.end_time).toLocaleString()}
-            </p>
+            </div>
           </div>
           <div className="space-y-2">
             <h3 className="text-lg font-medium">Ticket Information</h3>
@@ -495,12 +499,12 @@ const TicketDetails = () => {
             <h3 className="text-lg font-medium">Ownership</h3>
             <div className="flex items-center space-x-2">
               <User2 className="h-4 w-4" />
-              <p className="text-sm text-muted-foreground">Owner: {ticket.owner_address}</p>
+              <span className="text-sm text-muted-foreground">Owner: {ticket.owner_address}</span>
             </div>
             {address && (
               <div className="flex items-center space-x-2">
                 <Wallet className="h-4 w-4" />
-                <p className="text-sm text-muted-foreground">Your Address: {address}</p>
+                <span className="text-sm text-muted-foreground">Your Address: {address}</span>
               </div>
             )}
           </div>
@@ -508,7 +512,9 @@ const TicketDetails = () => {
           <div className="space-y-2">
             <h3 className="text-lg font-medium">Actions</h3>
             {!address ? (
-              <p className="text-sm text-muted-foreground">Please connect your wallet to interact with this ticket.</p>
+              <div className="text-sm text-muted-foreground">
+                Please connect your wallet to interact with this ticket.
+              </div>
             ) : address.toLowerCase() === ticket.owner_address.toLowerCase() ? (
               <>
                 {ticket.for_sale ? (
@@ -562,13 +568,13 @@ const TicketDetails = () => {
                                 ETH
                               </span>
                             </div>
-                            {resalePriceError && <p className="text-sm text-red-500">{resalePriceError}</p>}
+                            {resalePriceError && <div className="text-sm text-red-500">{resalePriceError}</div>}
                           </div>
                           <div className="bg-muted p-3 rounded-lg text-sm">
-                            <p className="font-medium mb-1">Original Price: {formatEthPrice(ticket.price)}</p>
-                            <p className="text-muted-foreground">
+                            <div className="font-medium mb-1">Original Price: {formatEthPrice(ticket.price)}</div>
+                            <div className="text-muted-foreground">
                               You can set any price for resale. Consider market demand and original pricing.
-                            </p>
+                            </div>
                           </div>
                           <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
                             <Button type="button" variant="outline" onClick={handleDialogClose} disabled={isListing}>
@@ -598,7 +604,7 @@ const TicketDetails = () => {
                         }}
                         className={cn({ "border-red-500": transferAddressError })}
                       />
-                      {transferAddressError && <p className="text-sm text-red-500">{transferAddressError}</p>}
+                      {transferAddressError && <div className="text-sm text-red-500">{transferAddressError}</div>}
                       <Button
                         className="w-full"
                         onClick={handleTransferTicket}
@@ -624,9 +630,9 @@ const TicketDetails = () => {
         <CardFooter className="flex justify-between">
           <div className="flex items-center space-x-2">
             <ShieldCheck className="h-4 w-4" />
-            <p className="text-sm text-muted-foreground">Secure Ticket</p>
+            <span className="text-sm text-muted-foreground">Secure Ticket</span>
           </div>
-          <p className="text-sm text-muted-foreground">Price: {formatEthPrice(ticket.price)}</p>
+          <span className="text-sm text-muted-foreground">Price: {formatEthPrice(ticket.price)}</span>
         </CardFooter>
       </Card>
     </div>
