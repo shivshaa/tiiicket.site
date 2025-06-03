@@ -1,5 +1,5 @@
 //Filename: action.ts
-//import { buyTicket, cancelTicketListing, fetchTicketById, listTicketForResale, transferTicket } from "@/lib/actions"
+
 import { supabase } from "@/lib/supabase"
 import { 
   buyResaleTicket, 
@@ -8,7 +8,7 @@ import {
   getUserTickets,
   ethToInr,
   inrToEth
-} from "@/lib/contract"
+} from "./contract"
 
 // Types for ticket operations
 interface TicketData {
