@@ -10,7 +10,45 @@ import {
   inrToEth
 } from "./contract"
 
-// Types for ticket operations
+// ✅ --- UTILITY FUNCTIONS ---
+
+// Timeout wrapper
+export const withTimeout = async <T>(
+  promise: Promise<T>, 
+  ms: number, 
+  timeoutMessage = "Operation timed out"
+): Promise<T> => {
+  let timeoutId: NodeJS.Timeout
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), ms)
+  })
+
+  try {
+    return await Promise.race([promise, timeout])
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+// Generic error handler
+export const handleNetworkError = (error: any): string => {
+  if (!error) return "Unknown error"
+
+  // Supabase formatted error
+  if (error.message) return error.message
+
+  // Network/contract error
+  if (typeof error === "string") return error
+  if (error instanceof Error) return error.message
+
+  try {
+    return JSON.stringify(error)
+  } catch {
+    return "Unexpected error occurred"
+  }
+}
+
+// Types
 interface TicketData {
   id: string
   token_id: number
@@ -32,7 +70,7 @@ interface BuyTicketParams {
   tokenId: number
   eventId: string
   buyerAddress: string
-  price: number // Price in INR
+  price: number
 }
 
 interface ListTicketParams {
@@ -40,8 +78,8 @@ interface ListTicketParams {
   tokenId: number
   eventId: string
   sellerAddress: string
-  originalPrice: number // Original price in INR
-  resalePrice: number // Resale price in INR
+  originalPrice: number
+  resalePrice: number
 }
 
 interface CancelListingParams {
@@ -60,6 +98,13 @@ interface TransferTicketParams {
 }
 
 type StatusCallback = (status: { status: "success" | "error" | "pending"; message: string }) => void
+
+// --- Remaining existing logic (fetchTicketById, buyTicket, etc.) stays unchanged ---
+// BUT you can now use:
+//   - await withTimeout(asyncFunc(), 15000)  // 15s timeout
+//   - handleNetworkError(error) for uniform messages
+
+
 
 // Fetch ticket by ID
 export const fetchTicketById = async (ticketId: string): Promise<TicketData> => {
