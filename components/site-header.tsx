@@ -7,7 +7,7 @@ import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ModeToggle } from "@/components/mode-toggle"
-import { useWallet } from "@/components/wallet-provider"
+import { useWallet } from "@/components/wallet-provider" // Ensure this provides 'balance'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,7 +20,9 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useAuth } from "@/components/auth-provider"
 
 export function SiteHeader() {
-  const { address, isConnected } = useWallet()
+  // Assume 'balance' is provided by useWallet()
+  // e.g., balance could be a string like "1.5 ETH" or a number like 1.5
+  const { address, isConnected, balance } = useWallet()
   const { user, isAuthenticated, signOut } = useAuth()
 
   const { theme, systemTheme } = useTheme()
@@ -38,6 +40,20 @@ export function SiteHeader() {
       : "https://res.cloudinary.com/deximageapi/image/upload/v1746777300/tiiicket-white_l64f6g.png"
 
   const [isOpen, setIsOpen] = useState(false)
+
+  // Determine the text to display in the button
+  let accountDisplayText = "Account";
+  if (user?.username) {
+    accountDisplayText = user.username;
+    if (balance !== undefined && balance !== null) {
+      accountDisplayText += ` (${balance})`; // Append balance if available
+    }
+  } else if (address) {
+    accountDisplayText = `${address.slice(0, 6)}...${address.slice(-4)}`;
+    if (balance !== undefined && balance !== null) {
+      accountDisplayText += ` (${balance})`; // Append balance if available
+    }
+  }
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background">
@@ -107,7 +123,8 @@ export function SiteHeader() {
                 <Button variant="outline" className="flex gap-2">
                   <Wallet className="h-4 w-4" />
                   <span className="hidden md:inline-block">
-                    {user?.username || (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "Account")}
+                    {/* Updated line to show username/address and balance */}
+                    {accountDisplayText}
                   </span>
                 </Button>
               </DropdownMenuTrigger>
@@ -176,7 +193,7 @@ export function SiteHeader() {
                     <Link href="/organizer/dashboard" className="text-sm font-medium" onClick={() => setIsOpen(false)}>
                       Organizer Dashboard
                     </Link>
-                    <button onClick={signOut} className="text-sm font-medium text-red-500">
+                    <button onClick={() => { signOut(); setIsOpen(false); }} className="text-sm font-medium text-left text-red-500">
                       Sign Out
                     </button>
                   </>
