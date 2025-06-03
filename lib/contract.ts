@@ -135,7 +135,7 @@ export const fetchTicketById = async (ticketId: string) => {
 }
 
 // Buy resale ticket - BLOCKCHAIN FIRST
-export const buyTicketBlockchainFirst = async (
+export const buyResaleTicket = async (
   tokenId: number,
   priceInEth: string,
   buyerAddress: string,
@@ -554,7 +554,7 @@ export const listTicketForSale = async (tokenId: number, price: string) => {
 
 // Legacy function for backward compatibility
 export const buyResaleTicket = async (tokenId: number, price: string) => {
-  return buyTicketBlockchainFirst(tokenId, price, "")
+  return buyResaleTicket(tokenId, price, "")
 }
 
 // Legacy function for backward compatibility
