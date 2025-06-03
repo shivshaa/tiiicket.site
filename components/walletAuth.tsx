@@ -90,7 +90,7 @@ export default function WalletAuth({ onAuthSuccess, onAuthError }: WalletAuthPro
   }
 
   // Get wallet balance
-export const getWalletBalance = async (address: string): Promise<string> => {
+  const getWalletBalance = async (address: string): Promise<string> => {
     try {
       if (!window.ethereum) return "0"
 
@@ -109,7 +109,7 @@ export const getWalletBalance = async (address: string): Promise<string> => {
   }
 
   // Get current network
-export const getCurrentNetwork = async (): Promise<NetworkInfo | null> => {
+  const getCurrentNetwork = async (): Promise<NetworkInfo | null> => {
     try {
       if (!window.ethereum) return null
 
