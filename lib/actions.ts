@@ -1,6 +1,14 @@
-//Filename: action.ts simuating blockchain transactions
+//Filename: action.ts
 
 import { supabase } from "@/lib/supabase"
+import { 
+  buyResaleTicket, 
+  listTicketForSale as contractListTicket,
+  delistTicketFromSale,
+  getUserTickets,
+  ethToInr,
+  inrToEth
+} from "@/lib//contract"
 
 // Types for ticket operations
 interface TicketData {
@@ -24,7 +32,7 @@ interface BuyTicketParams {
   tokenId: number
   eventId: string
   buyerAddress: string
-  price: number
+  price: number // Price in INR
 }
 
 interface ListTicketParams {
@@ -32,8 +40,8 @@ interface ListTicketParams {
   tokenId: number
   eventId: string
   sellerAddress: string
-  originalPrice: number
-  resalePrice: number
+  originalPrice: number // Original price in INR
+  resalePrice: number // Resale price in INR
 }
 
 interface CancelListingParams {
@@ -127,13 +135,13 @@ export const fetchTicketById = async (ticketId: string): Promise<TicketData> => 
   }
 }
 
-// Buy ticket function
+// Buy ticket function with blockchain integration
 export const buyTicket = async (
   params: BuyTicketParams,
   statusCallback: StatusCallback,
 ): Promise<{ success: boolean; message?: string }> => {
   try {
-    statusCallback({ status: "pending", message: "Initiating ticket purchase..." })
+    statusCallback({ status: "pending", message: "Validating ticket availability..." })
 
     // Check if ticket is available for sale
     const { data: ticketCheck, error: checkError } = await supabase
@@ -154,10 +162,19 @@ export const buyTicket = async (
       throw new Error("You cannot buy your own ticket")
     }
 
+    // Convert INR price to ETH for blockchain transaction
+    const priceInEth = inrToEth(params.price)
+    
     statusCallback({ status: "pending", message: "Processing blockchain transaction..." })
 
-    // Simulate blockchain transaction delay
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    // Execute blockchain transaction
+    const blockchainResult = await buyResaleTicket(params.tokenId, priceInEth)
+    
+    if (!blockchainResult.success) {
+      throw new Error("Blockchain transaction failed")
+    }
+
+    statusCallback({ status: "pending", message: "Updating database records..." })
 
     // Update ticket ownership in database
     const { error: updateError } = await supabase
@@ -171,27 +188,33 @@ export const buyTicket = async (
       .eq("token_id", params.tokenId)
 
     if (updateError) {
-      throw new Error(`Failed to update ticket ownership: ${updateError.message}`)
+      console.error("Database update failed, but blockchain transaction succeeded:", updateError)
+      // Note: In production, you might want to implement a recovery mechanism here
+      throw new Error(`Failed to update database: ${updateError.message}`)
     }
 
-    // Update secondary sales if this was a resale
+    // Update secondary sales record
     const { error: salesError } = await supabase
       .from("secondary_sales")
       .update({
         status: "completed",
         buyer_address: params.buyerAddress,
         sale_date: new Date().toISOString(),
+        transaction_hash: blockchainResult.tx.hash,
       })
       .eq("token_id", params.tokenId)
       .eq("status", "pending")
 
-    // Don't throw error if no secondary sale record exists
     if (salesError && salesError.code !== "PGRST116") {
       console.warn("Warning: Could not update secondary sales record:", salesError)
     }
 
     statusCallback({ status: "success", message: "Ticket purchased successfully!" })
-    return { success: true, message: "Ticket purchased successfully!" }
+    return { 
+      success: true, 
+      message: "Ticket purchased successfully!",
+      transactionHash: blockchainResult.tx.hash 
+    }
   } catch (error: any) {
     console.error("Error buying ticket:", error)
     statusCallback({ status: "error", message: error.message || "Failed to buy ticket" })
@@ -199,13 +222,13 @@ export const buyTicket = async (
   }
 }
 
-// List ticket for resale
+// List ticket for resale with blockchain integration
 export const listTicketForResale = async (
   params: ListTicketParams,
   statusCallback: StatusCallback,
 ): Promise<{ success: boolean; message?: string }> => {
   try {
-    statusCallback({ status: "pending", message: "Listing ticket for resale..." })
+    statusCallback({ status: "pending", message: "Validating ticket ownership..." })
 
     // Verify ownership
     const { data: ticketCheck, error: checkError } = await supabase
@@ -238,6 +261,18 @@ export const listTicketForResale = async (
       throw new Error("Ticket already has a pending listing")
     }
 
+    // Convert INR price to ETH for blockchain transaction
+    const resalePriceInEth = inrToEth(params.resalePrice)
+    
+    statusCallback({ status: "pending", message: "Processing blockchain transaction..." })
+
+    // Execute blockchain transaction to list ticket for sale
+    const blockchainResult = await contractListTicket(params.tokenId, resalePriceInEth)
+    
+    if (!blockchainResult.success) {
+      throw new Error("Blockchain transaction failed")
+    }
+
     statusCallback({ status: "pending", message: "Creating marketplace listing..." })
 
     // Create secondary sale record
@@ -249,9 +284,11 @@ export const listTicketForResale = async (
       resale_price: params.resalePrice,
       status: "pending",
       sale_date: new Date().toISOString(),
+      transaction_hash: blockchainResult.tx.hash,
     })
 
     if (saleError) {
+      console.error("Database insert failed, but blockchain transaction succeeded:", saleError)
       throw new Error(`Failed to create listing: ${saleError.message}`)
     }
 
@@ -265,11 +302,16 @@ export const listTicketForResale = async (
       .eq("token_id", params.tokenId)
 
     if (updateError) {
+      console.error("Database update failed:", updateError)
       throw new Error(`Failed to update ticket: ${updateError.message}`)
     }
 
     statusCallback({ status: "success", message: "Ticket listed for resale successfully!" })
-    return { success: true, message: "Ticket listed for resale successfully!" }
+    return { 
+      success: true, 
+      message: "Ticket listed for resale successfully!",
+      transactionHash: blockchainResult.tx.hash 
+    }
   } catch (error: any) {
     console.error("Error listing ticket:", error)
     statusCallback({ status: "error", message: error.message || "Failed to list ticket" })
@@ -277,13 +319,13 @@ export const listTicketForResale = async (
   }
 }
 
-// Cancel ticket listing
+// Cancel ticket listing with blockchain integration
 export const cancelTicketListing = async (
   params: CancelListingParams,
   statusCallback: StatusCallback,
 ): Promise<{ success: boolean; message?: string }> => {
   try {
-    statusCallback({ status: "pending", message: "Cancelling ticket listing..." })
+    statusCallback({ status: "pending", message: "Validating listing ownership..." })
 
     // Verify ownership and listing status
     const { data: ticketCheck, error: checkError } = await supabase
@@ -304,17 +346,30 @@ export const cancelTicketListing = async (
       throw new Error("Ticket is not listed for sale")
     }
 
+    statusCallback({ status: "pending", message: "Processing blockchain transaction..." })
+
+    // Execute blockchain transaction to delist ticket
+    const blockchainResult = await delistTicketFromSale(params.tokenId)
+    
+    if (!blockchainResult.success) {
+      throw new Error("Blockchain transaction failed")
+    }
+
+    statusCallback({ status: "pending", message: "Updating database records..." })
+
     // Update secondary sales record
     const { error: salesError } = await supabase
       .from("secondary_sales")
       .update({
         status: "cancelled",
         sale_date: new Date().toISOString(),
+        transaction_hash: blockchainResult.tx.hash,
       })
       .eq("token_id", params.tokenId)
       .eq("status", "pending")
 
     if (salesError) {
+      console.error("Database update failed:", salesError)
       throw new Error(`Failed to cancel listing: ${salesError.message}`)
     }
 
@@ -328,11 +383,16 @@ export const cancelTicketListing = async (
       .eq("token_id", params.tokenId)
 
     if (updateError) {
+      console.error("Database update failed:", updateError)
       throw new Error(`Failed to update ticket: ${updateError.message}`)
     }
 
     statusCallback({ status: "success", message: "Ticket listing cancelled successfully!" })
-    return { success: true, message: "Ticket listing cancelled successfully!" }
+    return { 
+      success: true, 
+      message: "Ticket listing cancelled successfully!",
+      transactionHash: blockchainResult.tx.hash 
+    }
   } catch (error: any) {
     console.error("Error cancelling listing:", error)
     statusCallback({ status: "error", message: error.message || "Failed to cancel listing" })
@@ -340,7 +400,7 @@ export const cancelTicketListing = async (
   }
 }
 
-// Transfer ticket
+// Transfer ticket (blockchain integration can be added later if needed)
 export const transferTicket = async (
   params: TransferTicketParams,
   statusCallback: StatusCallback,
@@ -373,7 +433,8 @@ export const transferTicket = async (
 
     statusCallback({ status: "pending", message: "Processing blockchain transaction..." })
 
-    // Simulate blockchain transaction delay
+    // TODO: Implement blockchain transfer function when available in contract.ts
+    // For now, simulate blockchain transaction delay
     await new Promise((resolve) => setTimeout(resolve, 2000))
 
     // Update ticket ownership
@@ -395,5 +456,25 @@ export const transferTicket = async (
     console.error("Error transferring ticket:", error)
     statusCallback({ status: "error", message: error.message || "Failed to transfer ticket" })
     return { success: false, message: error.message || "Failed to transfer ticket" }
+  }
+}
+
+// Helper function to refresh user tickets after blockchain operations
+export const refreshUserTickets = async (walletAddress: string) => {
+  try {
+    return await getUserTickets(walletAddress)
+  } catch (error) {
+    console.error("Error refreshing user tickets:", error)
+    return []
+  }
+}
+
+// Helper function to convert prices for display
+export const formatPriceDisplay = (priceInINR: number) => {
+  const priceInETH = inrToEth(priceInINR)
+  return {
+    inr: `₹${priceInINR.toLocaleString()}`,
+    eth: `${priceInETH} ETH`,
+    ethValue: parseFloat(priceInETH)
   }
 }
