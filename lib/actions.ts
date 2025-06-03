@@ -1,4 +1,4 @@
-//Filename: action.ts
+//Filename: action.ts simuating blockchain transactions
 
 import { supabase } from "@/lib/supabase"
 
