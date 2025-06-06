@@ -274,7 +274,7 @@ const TicketDetails = () => {
     setIsCancelling(true)
 
     try {
-      await delistTicketFromSaleBlockchainFirst(ticket.token_id, (status) => {
+      await delistTicketFromSale(ticket.token_id, (status) => {
         toast({
           title: status.status === "success" ? "Success!" : "Status Update",
           description: status.message,
@@ -418,7 +418,7 @@ const TicketDetails = () => {
     setIsListing(true)
 
     try {
-      await listTicketForSaleBlockchainFirst(ticket.token_id, resalePriceEth, address, (status) => {
+      await listTicketForSale(ticket.token_id, resalePriceEth, address, (status) => {
         toast({
           title: status.status === "success" ? "Success!" : "Status Update",
           description: status.message,
