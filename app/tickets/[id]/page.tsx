@@ -63,9 +63,9 @@ interface Ticket {
     category: string
     status: string
   }
-  owner: {
-    username: string
-    email: string
+  owner?: {
+    username?: string
+    email?: string
   }
 }
 
@@ -598,11 +598,11 @@ const TicketDetails = () => {
                 <div className="flex items-center space-x-3">
                   <Avatar>
                     <AvatarFallback>
-                      {ticket.owner.username?.charAt(0)?.toUpperCase() || 'U'}
+                      {ticket.owner?.username?.charAt(0)?.toUpperCase() || 'U'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
-                    <p className="font-medium">{ticket.owner.username || 'Unknown User'}</p>
+                    <p className="font-medium">{ticket.owner?.username || 'Unknown User'}</p>
                     <p className="text-sm text-muted-foreground font-mono">
                       {ticket.owner_address.slice(0, 6)}...{ticket.owner_address.slice(-4)}
                     </p>
