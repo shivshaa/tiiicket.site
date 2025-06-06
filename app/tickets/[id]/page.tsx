@@ -771,7 +771,7 @@ const TicketDetails = () => {
                   <span className="text-sm text-muted-foreground">Blockchain Secured</span>
                 </div>
                 <Badge variant="outline">
-                  ID: {ticket.ticket_id.slice(0, 8)}...
+                  ID: {ticket.ticket_id}
                 </Badge>
               </div>
             </CardFooter>
