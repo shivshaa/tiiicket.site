@@ -1,32 +1,15 @@
-// Generate QR code URL (using qr-server.com for demo - replace with your preferred QR service)
-  const getQRCodeUrl = (data: string) => {
-    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data)}`
-  }
+"use client"
 
-  // Handle image load error
-  const handleImageError = () => {
-    setImageError(true)
-  }"use client"
-
-import type React from "react"
-
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
+import Image from "next/image"
+import { QRCodeSVG } from "qrcode.react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle2, ShieldCheck, User2, Wallet, MapPin, Calendar, Clock, Ticket as TicketIcon, QrCode } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Separator } from "@/components/ui/separator"
+import { Calendar, Clock, MapPin, User, TicketIcon, ImageIcon, Tag, Share2, AlertCircle } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
-import {
-  fetchTicketById,
-  buyResaleTicket,
-  listTicketForSale,
-  delistTicketFromSale,
-  transferTicketBlockchainFirst,
-  ethToInr,
-} from "@/lib/contract"
 import {
   Dialog,
   DialogContent,
@@ -38,811 +21,616 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-
-// Import wallet hook
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { getTicketDetailsOptimized, invalidateTicketCaches } from "@/lib/marketplaceQueries"
+import { listTicketForResale, cancelTicketListing } from "@/lib/secondarySales"
 import { useWallet } from "@/components/wallet-provider"
+import { supabase } from "@/lib/supabaseClient"
 
-interface Ticket {
-  ticket_id: string
-  event_id: string
-  owner_address: string
-  price: number
-  category: string
-  token_uri: string
-  token_id: number
-  purchase_date: string
-  seat_info: string
-  event_name: string
-  image_url: string
-  qr_code: string
-  for_sale: boolean
-  resale_price: number | null
-  event: {
-    id: number
-    name: string
-    description: string
-    date: string
-    time: string
-    location: string
-    event_image_url: string
-    organizer_id: string
-    category: string
-    status: string
-  }
-  owner?: {
-    username?: string
-    email?: string
-  }
-}
-
-// QR Code data structure for verification
-interface QRCodeData {
-  ticketId: string
-  eventId: string
-  tokenId: number
-  ownerAddress: string
-  eventName: string
-  eventDate: string
-  eventTime: string
-  location: string
-  seatInfo: string
-  category: string
-  purchaseDate: string
-  isValid: boolean
-  blockchainHash?: string
-}
-
-const TicketDetails = () => {
-  const params = useParams()
+export default function TicketDetailsPage() {
+  const { id } = useParams()
   const router = useRouter()
+  const { address } = useWallet()
+  const [ticket, setTicket] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [resalePrice, setResalePrice] = useState("")
+  const [listingStatus, setListingStatus] = useState({ status: "idle", message: "" })
+  const [cancelStatus, setCancelStatus] = useState({ status: "idle", message: "" })
   const { toast } = useToast()
-  const { address, isConnected } = useWallet()
+  const isMounted = useRef(true)
+  const channelRef = useRef(null)
 
-  const [ticket, setTicket] = useState<Ticket | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isBuying, setIsBuying] = useState(false)
-  const [isCancelling, setIsCancelling] = useState(false)
-  const [isTransferring, setIsTransferring] = useState(false)
-  const [transferAddress, setTransferAddress] = useState("")
-  const [transferAddressError, setTransferAddressError] = useState("")
-  const [qrCodeData, setQrCodeData] = useState<string>("")
-  const [imageError, setImageError] = useState(false)
+  // Fetch ticket details
+  const fetchTicketDetails = useCallback(async () => {
+    try {
+      if (!isMounted.current) return
 
-  // Resale dialog state
-  const [isResaleDialogOpen, setIsResaleDialogOpen] = useState(false)
-  const [resalePriceEth, setResalePriceEth] = useState("")
-  const [resalePriceError, setResalePriceError] = useState("")
-  const [isListing, setIsListing] = useState(false)
+      setLoading(true)
+      setError(null)
 
+      const ticketData = await getTicketDetailsOptimized(Number(id))
+
+      if (!isMounted.current) return
+
+      if (!ticketData) {
+        setError("Ticket not found")
+        toast({
+          title: "Ticket not found",
+          description: "The ticket you're looking for doesn't exist or you don't have access to it.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Transform the data to match our TicketDetails interface
+      const ticketDetails = {
+        id: ticketData.ticket_id,
+        ticket_id: ticketData.ticket_id,
+        event_id: ticketData.event_id,
+        owner_address: ticketData.owner_address,
+        purchase_date: ticketData.purchase_date,
+        category: ticketData.category,
+        seat_info: ticketData.seat_info,
+        price: ticketData.price,
+        token_id: ticketData.token_id,
+        for_sale: ticketData.for_sale || false,
+        resale_price: ticketData.resale_price,
+        event_name: ticketData.event_data?.name || "Unknown Event",
+        event_description: ticketData.event_data?.description || "No description available",
+        event_location: ticketData.event_data?.location || "Unknown Location",
+        event_date: ticketData.event_data?.date || new Date().toISOString().split("T")[0],
+        event_time: ticketData.event_data?.time || "00:00:00",
+        event_image_url: ticketData.event_data?.event_image_url || "/placeholder.svg?height=400&width=600",
+        organizer_name: ticketData.event_data?.organizer_id || "Unknown Organizer",
+      }
+
+      setTicket(ticketDetails)
+
+      // Set initial resale price to original price if not already set
+      if (ticketDetails.price && !resalePrice) {
+        setResalePrice(ticketDetails.price.toString())
+      }
+    } catch (err) {
+      console.error("Error fetching ticket:", err)
+      if (isMounted.current) {
+        setError(err.message || "Failed to load ticket details")
+        toast({
+          title: "Error",
+          description: "Failed to load ticket details. Please try again.",
+          variant: "destructive",
+        })
+      }
+    } finally {
+      if (isMounted.current) {
+        setLoading(false)
+      }
+    }
+  }, [id, toast, resalePrice])
+
+  // Initial data loading and real-time updates
   useEffect(() => {
-    if (params.id) {
-      fetchTicket()
-    }
-  }, [params.id])
+    isMounted.current = true
 
-  // Generate QR code data
-  const generateQRCodeData = (ticketData: Ticket): string => {
-    const qrData: QRCodeData = {
-      ticketId: ticketData.ticket_id,
-      eventId: ticketData.event_id,
-      tokenId: ticketData.token_id,
-      ownerAddress: ticketData.owner_address,
-      eventName: ticketData.event_name,
-      eventDate: ticketData.event.date,
-      eventTime: ticketData.event.time,
-      location: ticketData.event.location,
-      seatInfo: ticketData.seat_info,
-      category: ticketData.category,
-      purchaseDate: ticketData.purchase_date,
-      isValid: ticketData.event.status === 'active',
-      blockchainHash: ticketData.token_uri
-    }
-    return JSON.stringify(qrData)
-  }
+    fetchTicketDetails()
 
-  const fetchTicket = async () => {
-    if (!params.id) {
-      toast({
-        title: "Error",
-        description: "Missing ticket ID",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsLoading(true)
-
+    // Set up real-time listener for this ticket
     try {
-      const ticket = await fetchTicketById(params.id as string)
-      setTicket(ticket)
-      
-      // Generate QR code data
-      const qrData = generateQRCodeData(ticket)
-      setQrCodeData(qrData)
-    } catch (error: any) {
-      console.error("Error fetching ticket:", error)
+      const channel = supabase
+        .channel(`ticket_${id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "tickets",
+            filter: `token_id=eq.${id}`,
+          },
+          (payload) => {
+            console.log("Real-time ticket update:", payload)
+            if (isMounted.current) {
+              // Invalidate cache and refetch
+              invalidateTicketCaches(null, Number(id))
+              fetchTicketDetails()
+            }
+          },
+        )
+        .subscribe()
+
+      // Also listen for secondary sales changes
+      const salesChannel = supabase
+        .channel(`secondary_sales_ticket_${id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "secondary_sales",
+            filter: `token_id=eq.${id}`,
+          },
+          (payload) => {
+            console.log("Real-time secondary sale update:", payload)
+            if (isMounted.current) {
+              // Invalidate cache and refetch
+              invalidateTicketCaches(null, Number(id))
+              fetchTicketDetails()
+            }
+          },
+        )
+        .subscribe()
+
+      channelRef.current = [channel, salesChannel]
+    } catch (error) {
+      console.error("Error setting up real-time listener:", error)
+    }
+
+    return () => {
+      isMounted.current = false
+
+      // Clean up the subscriptions
+      if (channelRef.current) {
+        try {
+          channelRef.current.forEach((channel) => {
+            supabase.removeChannel(channel)
+          })
+        } catch (error) {
+          console.error("Error removing channels:", error)
+        }
+      }
+    }
+  }, [id, fetchTicketDetails])
+
+  // Handle listing ticket for resale
+  const handleListForSale = useCallback(async () => {
+    if (!ticket || !resalePrice || !address) return
+
+    // Validate owner
+    if (ticket.owner_address.toLowerCase() !== address.toLowerCase()) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to fetch ticket",
-        variant: "destructive",
-      })
-      router.push("/tickets")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  // Format ETH price display
-  const formatEthPrice = (price: number): string => {
-    return `${price.toFixed(6)} ETH`
-  }
-
-  // Format price with both ETH and INR
-  const formatPriceDisplay = (priceInEth: number) => {
-    const inrValue = ethToInr(priceInEth)
-    return {
-      eth: formatEthPrice(priceInEth),
-      inr: `₹${inrValue.toLocaleString("en-IN")}`,
-    }
-  }
-
-  // Format date and time
-  const formatDateTime = (date: string, time: string) => {
-    const eventDate = new Date(`${date}T${time}`)
-    return {
-      date: eventDate.toLocaleDateString('en-IN', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      }),
-      time: eventDate.toLocaleTimeString('en-IN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      })
-    }
-  }
-
-  const handleBuyTicket = async () => {
-    if (!ticket) {
-      toast({
-        title: "Error",
-        description: "Missing ticket information",
+        title: "Not authorized",
+        description: "You can only list tickets that you own.",
         variant: "destructive",
       })
       return
     }
 
-    if (!address) {
+    // Validate price
+    const priceValue = Number(resalePrice)
+    if (isNaN(priceValue) || priceValue <= 0) {
       toast({
-        title: "Error",
-        description: "Please connect your wallet",
+        title: "Invalid price",
+        description: "Please enter a valid price greater than zero.",
         variant: "destructive",
       })
       return
     }
 
-    setIsBuying(true)
+    // List the ticket
+    await listTicketForResale(
+      {
+        ticketId: ticket.ticket_id,
+        tokenId: ticket.token_id,
+        eventId: ticket.event_id,
+        sellerAddress: address,
+        originalPrice: ticket.price,
+        resalePrice: priceValue,
+      },
+      setListingStatus,
+    )
 
+    // Update UI based on final status
+    if (listingStatus.status === "success") {
+      // Invalidate cache and refetch
+      invalidateTicketCaches(ticket.event_id, ticket.token_id)
+      fetchTicketDetails()
+    }
+  }, [ticket, resalePrice, address, toast, fetchTicketDetails, listingStatus.status])
+
+  // Handle cancelling listing
+  const handleCancelListing = useCallback(async () => {
+    if (!ticket || !address) return
+
+    // Validate owner
+    if (ticket.owner_address.toLowerCase() !== address.toLowerCase()) {
+      toast({
+        title: "Not authorized",
+        description: "You can only cancel listings for tickets that you own.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Cancel the listing
+    await cancelTicketListing(ticket.token_id, setCancelStatus)
+
+    // Update UI based on final status
+    if (cancelStatus.status === "success") {
+      // Invalidate cache and refetch
+      invalidateTicketCaches(ticket.event_id, ticket.token_id)
+      fetchTicketDetails()
+    }
+  }, [ticket, address, toast, fetchTicketDetails, cancelStatus.status])
+
+  // Handle sharing ticket
+  const handleShare = useCallback(async () => {
     try {
-      const priceInEth = (ticket.resale_price || ticket.price).toString()
-
-      await buyTicketBlockchainFirst(ticket.token_id, priceInEth, address, (status) => {
-        toast({
-          title: status.status === "success" ? "Success!" : "Status Update",
-          description: status.message,
-          variant: status.status === "error" ? "destructive" : "default",
+      if (navigator.share) {
+        await navigator.share({
+          title: `Ticket for ${ticket?.event_name}`,
+          text: `Check out my ticket for ${ticket?.event_name} on ${new Date(ticket?.event_date || "").toLocaleDateString()}`,
+          url: window.location.href,
         })
-      })
-
-      // Refresh ticket data after successful purchase
-      await fetchTicket()
-    } catch (error: any) {
-      console.error("Error buying ticket:", error)
-      toast({
-        title: "Error",
-        description: error.message || "Failed to buy ticket",
-        variant: "destructive",
-      })
-    } finally {
-      setIsBuying(false)
-    }
-  }
-
-  const handleCancelListing = async () => {
-    if (!ticket) {
-      toast({
-        title: "Error",
-        description: "Missing ticket information",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (!address) {
-      toast({
-        title: "Error",
-        description: "Please connect your wallet",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsCancelling(true)
-
-    try {
-      await delistTicketFromSale(ticket.token_id, (status) => {
+      } else {
+        // Fallback for browsers that don't support the Web Share API
+        await navigator.clipboard.writeText(window.location.href)
         toast({
-          title: status.status === "success" ? "Success!" : "Status Update",
-          description: status.message,
-          variant: status.status === "error" ? "destructive" : "default",
+          title: "Link copied",
+          description: "Ticket link copied to clipboard",
         })
-      })
-
-      // Refresh ticket data after successful cancellation
-      await fetchTicket()
-    } catch (error: any) {
-      console.error("Error cancelling listing:", error)
-      toast({
-        title: "Error",
-        description: error.message || "Failed to cancel ticket listing",
-        variant: "destructive",
-      })
-    } finally {
-      setIsCancelling(false)
+      }
+    } catch (err) {
+      console.error("Error sharing ticket:", err)
     }
-  }
+  }, [ticket, toast])
 
-  const validateAddress = (address: string): boolean => {
-    if (!address || address.trim() === "") {
-      setTransferAddressError("Please enter an address")
-      return false
-    }
-
-    const ethAddressRegex = /^0x[a-fA-F0-9]{40}$/
-    if (!ethAddressRegex.test(address)) {
-      setTransferAddressError("Invalid Ethereum address")
-      return false
-    }
-
-    setTransferAddressError("")
-    return true
-  }
-
-  const handleTransferTicket = async () => {
-    if (!ticket) {
-      toast({
-        title: "Error",
-        description: "Missing ticket information",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (!address) {
-      toast({
-        title: "Error",
-        description: "Please connect your wallet",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (!validateAddress(transferAddress)) {
-      return
-    }
-
-    setIsTransferring(true)
-
-    try {
-      await transferTicketBlockchainFirst(ticket.token_id, address, transferAddress, (status) => {
-        toast({
-          title: status.status === "success" ? "Success!" : "Status Update",
-          description: status.message,
-          variant: status.status === "error" ? "destructive" : "default",
-        })
-      })
-
-      // Refresh ticket data and clear transfer address
-      await fetchTicket()
-      setTransferAddress("")
-    } catch (error: any) {
-      console.error("Error transferring ticket:", error)
-      toast({
-        title: "Error",
-        description: error.message || "Failed to transfer ticket",
-        variant: "destructive",
-      })
-    } finally {
-      setIsTransferring(false)
-    }
-  }
-
-  // Improved ETH validation function
-  const validateEthPrice = (value: string): boolean => {
-    if (!value || value.trim() === "") {
-      setResalePriceError("Please enter a price")
-      return false
-    }
-
-    // Allow only numbers and one decimal point
-    const ethRegex = /^\d*\.?\d{0,18}$/
-    if (!ethRegex.test(value)) {
-      setResalePriceError("Invalid ETH format. Use up to 18 decimal places")
-      return false
-    }
-
-    const numValue = Number.parseFloat(value)
-    if (isNaN(numValue) || numValue <= 0) {
-      setResalePriceError("Price must be greater than 0")
-      return false
-    }
-
-    // Reasonable upper limit for ETH price
-    if (numValue > 1000) {
-      setResalePriceError("Price cannot exceed 1000 ETH")
-      return false
-    }
-
-    // Check for minimum meaningful price (0.000001 ETH)
-    if (numValue < 0.000001) {
-      setResalePriceError("Price must be at least 0.000001 ETH")
-      return false
-    }
-
-    setResalePriceError("")
-    return true
-  }
-
-  // Handle listing for resale
-  const handleListForResale = async (e: React.FormEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-
-    if (!validateEthPrice(resalePriceEth)) {
-      return
-    }
-
-    if (!ticket || !address) {
-      toast({
-        title: "Error",
-        description: "Missing ticket or wallet information",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsListing(true)
-
-    try {
-      await listTicketForSale(ticket.token_id, resalePriceEth, address, (status) => {
-        toast({
-          title: status.status === "success" ? "Success!" : "Status Update",
-          description: status.message,
-          variant: status.status === "error" ? "destructive" : "default",
-        })
-      })
-
-      // Close dialog and refresh ticket data
-      setIsResaleDialogOpen(false)
-      setResalePriceEth("")
-      setResalePriceError("")
-      await fetchTicket()
-    } catch (error: any) {
-      console.error("Error listing ticket:", error)
-      toast({
-        title: "Error",
-        description: error.message || "Failed to list ticket for resale",
-        variant: "destructive",
-      })
-    } finally {
-      setIsListing(false)
-    }
-  }
-
-  // Handle dialog close
-  const handleDialogClose = () => {
-    if (!isListing) {
-      setIsResaleDialogOpen(false)
-      setResalePriceEth("")
-      setResalePriceError("")
-    }
-  }
-
-  // Handle price input change with INR preview
-  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    setResalePriceEth(value)
-
-    if (value && value.trim() !== "") {
-      validateEthPrice(value)
-    } else {
-      setResalePriceError("")
-    }
-  }
-
-  // Check if image URL is valid
-  const isValidImageUrl = (url: string) => {
-    if (!url) return false
-    // Check if it's a blob URL (which often causes issues)
-    if (url.startsWith('blob:')) return false
-    // Check if it's a valid HTTP/HTTPS URL
-    try {
-      new URL(url)
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  if (isLoading) {
+  // Loading state
+  if (loading) {
     return (
-      <div className="container mx-auto py-10 max-w-4xl">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Ticket Card */}
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  <Skeleton className="h-8 w-64" />
-                </CardTitle>
-                <CardDescription>
-                  <Skeleton className="h-4 w-96" />
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <Skeleton className="h-48 w-full rounded-lg" />
-                <div className="grid grid-cols-2 gap-4">
-                  <Skeleton className="h-20" />
-                  <Skeleton className="h-20" />
-                  <Skeleton className="h-20" />
-                  <Skeleton className="h-20" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-          
-          {/* QR Code Card */}
-          <div>
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  <Skeleton className="h-6 w-32" />
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-48 w-full" />
-              </CardContent>
-            </Card>
-          </div>
+      <div className="container mx-auto py-10">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       </div>
     )
   }
 
-  if (!ticket) {
+  // Error state
+  if (error) {
     return (
-      <div className="container mx-auto py-10 max-w-4xl">
+      <div className="container mx-auto py-10">
         <Card>
           <CardHeader>
-            <CardTitle>Ticket Not Found</CardTitle>
-            <CardDescription>The requested ticket could not be found.</CardDescription>
+            <CardTitle className="text-destructive">Error Loading Ticket</CardTitle>
+            <CardDescription>{error}</CardDescription>
           </CardHeader>
+          <CardFooter>
+            <Button onClick={() => router.back()}>Go Back</Button>
+          </CardFooter>
         </Card>
       </div>
     )
   }
 
-  const priceDisplay = formatPriceDisplay(ticket.resale_price || ticket.price)
-  const dateTime = formatDateTime(ticket.event.date, ticket.event.time)
+  // Not found state
+  if (!ticket) {
+    return (
+      <div className="container mx-auto py-10">
+        <Card>
+          <CardHeader>
+            <CardTitle>Ticket Not Found</CardTitle>
+            <CardDescription>
+              The ticket you're looking for doesn't exist or you don't have access to it.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button onClick={() => router.back()}>Go Back</Button>
+          </CardFooter>
+        </Card>
+      </div>
+    )
+  }
+
+  // Format date for display
+  const formattedDate = new Date(ticket.event_date).toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  })
+
+  // Generate QR code data
+  const qrCodeData = JSON.stringify({
+    ticketId: ticket.token_id,
+    eventId: ticket.event_id,
+    eventName: ticket.event_name,
+    date: ticket.event_date,
+    time: ticket.event_time,
+    category: ticket.category,
+    seatInfo: ticket.seat_info,
+    ownerAddress: ticket.owner_address,
+  })
+
+  // Check if user is the owner
+  const isOwner = address && ticket.owner_address.toLowerCase() === address.toLowerCase()
 
   return (
-    <div className="container mx-auto py-10 max-w-6xl">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Ticket Card */}
-        <div className="lg:col-span-2">
+    <div className="container mx-auto py-10 px-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2">
           <Card className="overflow-hidden">
-            <div className="relative">
-              {ticket.event.event_image_url && !imageError && isValidImageUrl(ticket.event.event_image_url) ? (
-                <div className="h-64 overflow-hidden">
-                  <img
-                    src={ticket.event.event_image_url}
-                    alt={ticket.event_name}
-                    className="w-full h-full object-cover"
-                    onError={handleImageError}
-                  />
-                </div>
+            <div className="relative h-64 w-full">
+              {ticket.event_image_url ? (
+                <Image
+                  src={ticket.event_image_url || "/placeholder.svg"}
+                  alt={ticket.event_name}
+                  fill
+                  className="object-cover"
+                  priority
+                />
               ) : (
-                <div className="h-64 bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                  <div className="text-center text-muted-foreground">
-                    <TicketIcon className="h-16 w-16 mx-auto mb-2 opacity-50" />
-                    <p className="text-lg font-medium">{ticket.event_name}</p>
-                    <p className="text-sm">Event Image</p>
-                  </div>
+                <div className="flex items-center justify-center h-full bg-muted">
+                  <ImageIcon className="h-16 w-16 text-muted-foreground" />
+                  <span className="ml-2 text-muted-foreground">No image available</span>
                 </div>
               )}
-              <div className="absolute top-4 right-4 flex gap-2">
-                <Badge variant={ticket.event.status === 'active' ? 'default' : 'secondary'}>
-                  {ticket.event.status}
-                </Badge>
-                {ticket.for_sale && (
-                  <Badge variant="destructive">For Sale</Badge>
-                )}
-              </div>
             </div>
-            
             <CardHeader>
-              <CardTitle className="text-2xl">{ticket.event_name}</CardTitle>
-              <CardDescription className="text-base">{ticket.event.description}</CardDescription>
-            </CardHeader>
-            
-            <CardContent className="space-y-6">
-              {/* Event Details Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
-                  <Calendar className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="font-medium">{dateTime.date}</p>
-                    <p className="text-sm text-muted-foreground">{dateTime.time}</p>
-                  </div>
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle className="text-2xl font-bold">{ticket.event_name}</CardTitle>
+                  <CardDescription className="text-lg mt-1">{ticket.event_description}</CardDescription>
                 </div>
-                
-                <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
-                  <MapPin className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="font-medium">Location</p>
-                    <p className="text-sm text-muted-foreground">{ticket.event.location}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
-                  <TicketIcon className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="font-medium">Seat Info</p>
-                    <p className="text-sm text-muted-foreground">{ticket.seat_info || 'General Admission'}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
-                  <Badge variant="outline" className="h-5">
-                    {ticket.category}
+                <div className="flex flex-col items-end gap-2">
+                  <Badge variant={ticket.for_sale ? "destructive" : "outline"} className="text-sm">
+                    {ticket.for_sale ? "For Sale" : "Valid"}
                   </Badge>
-                  <div>
-                    <p className="font-medium">Category</p>
-                    <p className="text-sm text-muted-foreground">Token ID: {ticket.token_id}</p>
-                  </div>
-                </div>
-              </div>
-              
-              <Separator />
-              
-              {/* Owner Information */}
-              <div className="space-y-3">
-                <h3 className="text-lg font-semibold">Ownership Details</h3>
-                <div className="flex items-center space-x-3">
-                  <Avatar>
-                    <AvatarFallback>
-                      {ticket.owner?.username?.charAt(0)?.toUpperCase() || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="font-medium">{ticket.owner?.username || 'Unknown User'}</p>
-                    <p className="text-sm text-muted-foreground font-mono">
-                      {ticket.owner_address.slice(0, 6)}...{ticket.owner_address.slice(-4)}
-                    </p>
-                  </div>
-                  {address && (
-                    <div className="text-right">
-                      <p className="text-sm text-muted-foreground">Your Wallet</p>
-                      <p className="text-sm font-mono">
-                        {address.slice(0, 6)}...{address.slice(-4)}
-                      </p>
-                    </div>
+                  {ticket.for_sale && ticket.resale_price && (
+                    <Badge variant="secondary" className="text-sm">
+                      Resale Price: ₹{ticket.resale_price.toLocaleString()}
+                    </Badge>
+                  )}
+                  {!isOwner && (
+                    <Badge variant="outline" className="text-sm">
+                      Not Owner
+                    </Badge>
                   )}
                 </div>
               </div>
-              
-              <Separator />
-              
-              {/* Purchase Information */}
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h4 className="font-medium mb-2">Purchase Details</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Purchased: {new Date(ticket.purchase_date).toLocaleDateString('en-IN')}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Original Price: {formatPriceDisplay(ticket.price).eth} ({formatPriceDisplay(ticket.price).inr})
-                  </p>
+                <div className="flex items-center">
+                  <Calendar className="h-5 w-5 mr-2 text-primary" />
+                  <span>{formattedDate}</span>
                 </div>
-                <div>
-                  <h4 className="font-medium mb-2">Current Price</h4>
-                  <p className="text-lg font-bold text-primary">
-                    {priceDisplay.eth}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {priceDisplay.inr}
-                  </p>
+                <div className="flex items-center">
+                  <Clock className="h-5 w-5 mr-2 text-primary" />
+                  <span>{ticket.event_time}</span>
+                </div>
+                <div className="flex items-center">
+                  <MapPin className="h-5 w-5 mr-2 text-primary" />
+                  <span>{ticket.event_location}</span>
+                </div>
+                <div className="flex items-center">
+                  <User className="h-5 w-5 mr-2 text-primary" />
+                  <span>Organized by {ticket.organizer_name}</span>
                 </div>
               </div>
-              
+
               <Separator />
-              
-              {/* Actions */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Actions</h3>
-                {!address ? (
-                  <div className="text-center p-4 bg-muted/50 rounded-lg">
-                    <p className="text-muted-foreground mb-2">Connect your wallet to interact with this ticket</p>
+
+              <div>
+                <h3 className="font-semibold text-lg mb-2">Ticket Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Ticket Type</p>
+                    <p className="font-medium">{ticket.category}</p>
                   </div>
-                ) : address.toLowerCase() === ticket.owner_address.toLowerCase() ? (
-                  <div className="space-y-3">
-                    {ticket.for_sale ? (
-                      <Button
-                        variant="destructive"
-                        className="w-full"
-                        onClick={handleCancelListing}
-                        disabled={isCancelling}
-                      >
-                        {isCancelling ? "Cancelling..." : "Cancel Listing"}
-                      </Button>
-                    ) : (
-                      <Dialog open={isResaleDialogOpen} onOpenChange={handleDialogClose}>
-                        <DialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="w-full"
-                            onClick={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                              setIsResaleDialogOpen(true)
-                            }}
-                            disabled={ticket?.for_sale || isListing}
-                          >
-                            {ticket?.for_sale ? "Already Listed" : "List for Resale"}
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-md" onClick={(e) => e.stopPropagation()}>
-                          <DialogHeader>
-                            <DialogTitle>List Ticket for Resale</DialogTitle>
-                            <DialogDescription>
-                              Set your resale price in ETH. The price will be used directly on the blockchain marketplace.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <form onSubmit={handleListForResale} className="space-y-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="resale-price">Resale Price (ETH)</Label>
-                              <div className="relative">
-                                <Input
-                                  id="resale-price"
-                                  type="text"
-                                  placeholder="0.002"
-                                  value={resalePriceEth}
-                                  onChange={handlePriceChange}
-                                  className={`pr-12 ${resalePriceError ? "border-red-500" : ""}`}
-                                  disabled={isListing}
-                                  autoComplete="off"
-                                />
-                                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-muted-foreground">
-                                  ETH
-                                </span>
-                              </div>
-                              {resalePriceError && <div className="text-sm text-red-500">{resalePriceError}</div>}
-                              {resalePriceEth && !resalePriceError && (
-                                <div className="text-sm text-muted-foreground">
-                                  ≈ ₹{ethToInr(Number.parseFloat(resalePriceEth)).toLocaleString("en-IN")}
-                                </div>
-                              )}
-                            </div>
-                            <DialogFooter>
-                              <Button type="button" variant="outline" onClick={handleDialogClose} disabled={isListing}>
-                                Cancel
-                              </Button>
-                              <Button type="submit" disabled={isListing || !!resalePriceError || !resalePriceEth.trim()}>
-                                {isListing ? "Listing..." : "List for Resale"}
-                              </Button>
-                            </DialogFooter>
-                          </form>
-                        </DialogContent>
-                      </Dialog>
-                    )}
-                    
-                    {/* Transfer Section */}
-                    <div className="space-y-2">
-                      <Label htmlFor="transfer-address">Transfer Ticket</Label>
-                      <Input
-                        id="transfer-address"
-                        type="text"
-                        placeholder="0x..."
-                        value={transferAddress}
-                        onChange={(e) => {
-                          setTransferAddress(e.target.value)
-                          if (e.target.value && e.target.value.trim() !== "") {
-                            validateAddress(e.target.value)
-                          } else {
-                            setTransferAddressError("")
-                          }
-                        }}
-                        className={cn({ "border-red-500": transferAddressError })}
-                      />
-                      {transferAddressError && <div className="text-sm text-red-500">{transferAddressError}</div>}
-                      <Button
-                        className="w-full"
-                        onClick={handleTransferTicket}
-                        disabled={isTransferring || !!transferAddressError || !transferAddress.trim()}
-                      >
-                        {isTransferring ? "Transferring..." : "Transfer"}
-                      </Button>
+                  {ticket.seat_info && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Seat Information</p>
+                      <p className="font-medium">{ticket.seat_info}</p>
                     </div>
+                  )}
+                  <div>
+                    <p className="text-sm text-muted-foreground">Original Price</p>
+                    <p className="font-medium">₹{ticket.price.toLocaleString()}</p>
                   </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Purchase Date</p>
+                    <p className="font-medium">{new Date(ticket.purchase_date).toLocaleDateString()}</p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="flex flex-wrap gap-2">
+                {isOwner ? (
+                  ticket.for_sale ? (
+                    <Button
+                      variant="destructive"
+                      onClick={handleCancelListing}
+                      disabled={
+                        cancelStatus.status !== "idle" &&
+                        cancelStatus.status !== "success" &&
+                        cancelStatus.status !== "error"
+                      }
+                      className="flex-1"
+                    >
+                      {cancelStatus.status === "preparing"
+                        ? "Preparing..."
+                        : cancelStatus.status === "wallet-confirm"
+                          ? "Confirm in Wallet..."
+                          : cancelStatus.status === "blockchain-pending"
+                            ? "Confirming..."
+                            : cancelStatus.status === "blockchain-success"
+                              ? "Updating..."
+                              : cancelStatus.status === "database-pending"
+                                ? "Finalizing..."
+                                : "Cancel Listing"}
+                    </Button>
+                  ) : (
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button className="flex-1">
+                          <Tag className="mr-2 h-4 w-4" />
+                          List for Resale
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>List Ticket for Resale</DialogTitle>
+                          <DialogDescription>
+                            Set a price for your ticket. Once listed, it will be available for purchase by other users.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="resalePrice" className="text-right">
+                              Price (₹)
+                            </Label>
+                            <Input
+                              id="resalePrice"
+                              type="number"
+                              value={resalePrice}
+                              onChange={(e) => setResalePrice(e.target.value)}
+                              className="col-span-3"
+                              min={ticket.price * 0.5} // Minimum price is 50% of original
+                              step="100"
+                            />
+                          </div>
+                          <Alert>
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertTitle>Important</AlertTitle>
+                            <AlertDescription>
+                              A 2.5% platform fee will be deducted from the final sale price.
+                            </AlertDescription>
+                          </Alert>
+                          {listingStatus.status !== "idle" && listingStatus.status !== "success" && (
+                            <Alert variant={listingStatus.status === "error" ? "destructive" : "default"}>
+                              <AlertTitle>{listingStatus.status === "error" ? "Error" : "Status"}</AlertTitle>
+                              <AlertDescription>{listingStatus.message}</AlertDescription>
+                            </Alert>
+                          )}
+                        </div>
+                        <DialogFooter>
+                          <Button
+                            onClick={handleListForSale}
+                            disabled={
+                              listingStatus.status !== "idle" &&
+                              listingStatus.status !== "success" &&
+                              listingStatus.status !== "error"
+                            }
+                          >
+                            {listingStatus.status === "preparing"
+                              ? "Preparing..."
+                              : listingStatus.status === "wallet-confirm"
+                                ? "Confirm in Wallet..."
+                                : listingStatus.status === "blockchain-pending"
+                                  ? "Confirming..."
+                                  : listingStatus.status === "blockchain-success"
+                                    ? "Updating..."
+                                    : listingStatus.status === "database-pending"
+                                      ? "Finalizing..."
+                                      : "List Ticket"}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  )
                 ) : (
-                  <Button 
-                    className="w-full" 
-                    onClick={handleBuyTicket} 
-                    disabled={isBuying || !ticket.for_sale}
-                    size="lg"
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => router.push(`/market/purchase/${ticket.token_id}`)}
+                    disabled={!ticket.for_sale}
                   >
-                    {isBuying ? "Buying..." : ticket.for_sale ? `Buy Ticket (${priceDisplay.eth})` : "Not for Sale"}
+                    {ticket.for_sale ? "Purchase Ticket" : "Not For Sale"}
                   </Button>
                 )}
+
+                <Button variant="outline" onClick={handleShare}>
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Share
+                </Button>
               </div>
             </CardContent>
-            
-            <CardFooter className="bg-muted/20 border-t">
-              <div className="flex items-center justify-between w-full">
-                <div className="flex items-center space-x-2">
-                  <ShieldCheck className="h-4 w-4 text-green-600" />
-                  <span className="text-sm text-muted-foreground">Blockchain Secured</span>
-                </div>
-                <Badge variant="outline">
-                  ID: {ticket.ticket_id}
-                </Badge>
-              </div>
+            <CardFooter className="bg-muted/50 flex flex-col items-start">
+              <p className="text-sm text-muted-foreground mb-1">Ticket ID</p>
+              <p className="font-mono text-xs">{ticket.id}</p>
+              <p className="text-sm text-muted-foreground mt-2 mb-1">Owner Address</p>
+              <p className="font-mono text-xs break-all">{ticket.owner_address}</p>
+              <p className="text-sm text-muted-foreground mt-2 mb-1">Token ID</p>
+              <p className="font-mono text-xs">{ticket.token_id}</p>
             </CardFooter>
           </Card>
         </div>
-        
-        {/* QR Code Card */}
+
         <div>
-          <Card className="sticky top-6">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <QrCode className="h-5 w-5" />
-                <span>Verification QR</span>
+              <CardTitle className="flex items-center">
+                <TicketIcon className="h-5 w-5 mr-2" />
+                Your Ticket
               </CardTitle>
-              <CardDescription>
-                Scan this code for ticket verification
-              </CardDescription>
             </CardHeader>
-            <CardContent className="text-center space-y-4">
-              <div className="bg-white p-4 rounded-lg border-2 border-dashed border-muted-foreground/20">
-                <img
-                  src={getQRCodeUrl(qrCodeData)}
-                  alt="Ticket QR Code"
-                  className="w-full max-w-48 mx-auto"
-                />
+            <CardContent className="flex justify-center">
+              <div className="bg-white p-5 rounded-lg shadow-inner w-full max-w-xs">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-5 flex flex-col items-center">
+                  {/* Event Details */}
+                  <div className="text-center mb-4">
+                    <h3 className="font-bold text-lg text-gray-900">{ticket.event_name}</h3>
+                    <p className="text-sm text-gray-700">
+                      {formattedDate} | {ticket.event_time}
+                    </p>
+                  </div>
+
+                  {/* QR Code */}
+                  <div className="w-48 h-48 bg-white flex items-center justify-center mb-4 p-2 border border-gray-300 rounded">
+                    <QRCodeSVG
+                      value={qrCodeData}
+                      size={180}
+                      level="H"
+                      includeMargin={true}
+                      imageSettings={{
+                        src: "/logo.png",
+                        height: 24,
+                        width: 24,
+                        excavate: true,
+                      }}
+                    />
+                  </div>
+
+                  {/* Ticket Info */}
+                  <div className="text-center w-full">
+                    <p className="text-base font-semibold text-gray-800">{ticket.category}</p>
+                    {ticket.seat_info && (
+                      <p className="text-base font-medium text-gray-700">Seat: {ticket.seat_info}</p>
+                    )}
+                    <p className="text-xs mt-2 font-mono text-gray-600">#{ticket.token_id}</p>
+                  </div>
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground space-y-1">
-                <p>Contains: Ticket ID, Event Details,</p>
-                <p>Owner Info, Blockchain Hash</p>
+            </CardContent>
+
+            <CardFooter className="flex justify-center">
+              <p className="text-sm text-center text-muted-foreground">
+                {ticket.for_sale
+                  ? "This ticket is currently listed for resale"
+                  : "Present this ticket at the venue entrance"}
+              </p>
+            </CardFooter>
+          </Card>
+
+          {/* Additional information card */}
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle className="text-sm">Verification Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">
+                This ticket is secured by blockchain technology. The QR code contains a unique signature that can be
+                verified at the venue.
+              </p>
+              <div className="mt-4 text-xs">
+                <p className="font-semibold">Verification Steps:</p>
+                <ol className="list-decimal list-inside mt-2 space-y-1 text-muted-foreground">
+                  <li>Present the QR code at the venue entrance</li>
+                  <li>Staff will scan the code to verify authenticity</li>
+                  <li>Once verified, you'll be granted entry</li>
+                </ol>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full"
-                onClick={() => {
-                  navigator.clipboard.writeText(qrCodeData)
-                  toast({
-                    title: "Copied!",
-                    description: "QR code data copied to clipboard",
-                  })
-                }}
-              >
-                Copy QR Data
-              </Button>
             </CardContent>
           </Card>
         </div>
@@ -850,5 +638,3 @@ const TicketDetails = () => {
     </div>
   )
 }
-
-export default TicketDetails
