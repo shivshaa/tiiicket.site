@@ -798,10 +798,10 @@ const TicketDetails = () => {
                   className="w-full max-w-48 mx-auto"
                 />
               </div>
-              <div className="text-xs text-muted-foreground space-y-1">
-                <p>Contains: Ticket ID, Event Details,</p>
-                <p>Owner Info, Blockchain Hash</p>
-              </div>
+                <section  className="text-xs text-muted-foreground space-y-1">
+                  <p>Contains: Ticket ID, Event Details,</p>
+                  <p>Owner Info, Blockchain Hash</p>
+                </section >
               <Button 
                 variant="outline" 
                 size="sm" 
