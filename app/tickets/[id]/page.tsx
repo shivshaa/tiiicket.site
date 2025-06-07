@@ -75,6 +75,18 @@ const TicketDetails = () => {
   const isMounted = useRef(true)
   const channelRef = useRef<any>(null)
 
+  // Helper function to check if event is active (not passed)
+  const isEventActive = useCallback((eventDate: string, eventTime: string): boolean => {
+    try {
+      const eventDateTime = new Date(`${eventDate}T${eventTime}`)
+      const now = new Date()
+      return eventDateTime > now
+    } catch (error) {
+      console.error("Error parsing event date/time:", error)
+      return false
+    }
+  }, [])
+
   // Fetch ticket details
   const fetchTicketDetails = useCallback(async () => {
     try {
@@ -331,12 +343,26 @@ const TicketDetails = () => {
     }
   }
 
-  const handleDialogClose = () => {
-    if (!isListing) {
+  const handleDialogClose = (open: boolean) => {
+    if (!isListing && !open) {
       setIsResaleDialogOpen(false)
       setResalePriceEth("")
       setResalePriceError("")
+    } else if (open) {
+      setIsResaleDialogOpen(true)
     }
+  }
+
+  const handleOpenResaleDialog = () => {
+    if (!ticket || !isEventActive(ticket.event_date, ticket.event_time)) {
+      toast({
+        title: "Event has ended",
+        description: "You can only list tickets for resale before the event starts.",
+        variant: "destructive",
+      })
+      return
+    }
+    setIsResaleDialogOpen(true)
   }
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -415,6 +441,7 @@ const TicketDetails = () => {
 
   const isOwner = address && ticket.owner_address.toLowerCase() === address.toLowerCase()
   const priceDisplay = formatPriceDisplay(ticket.price)
+  const eventActive = isEventActive(ticket.event_date, ticket.event_time)
 
   return (
     <div className="container mx-auto py-10 px-4">
@@ -447,6 +474,9 @@ const TicketDetails = () => {
                   <Badge variant={ticket.for_sale ? "destructive" : "outline"}>
                     {ticket.for_sale ? "For Sale" : "Valid"}
                   </Badge>
+                  {!eventActive && (
+                    <Badge variant="secondary">Event Ended</Badge>
+                  )}
                   {ticket.for_sale && ticket.resale_price && (
                     <Badge variant="secondary">
                       Resale Price: {formatEthPrice(ticket.resale_price)}
@@ -520,56 +550,69 @@ const TicketDetails = () => {
                       {isCancelling ? "Cancelling..." : "Cancel Listing"}
                     </Button>
                   ) : (
-                    <Dialog open={isResaleDialogOpen} onOpenChange={handleDialogClose}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" className="flex-1" disabled={isListing}>
-                          List for Resale
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>List Ticket for Resale</DialogTitle>
-                          <DialogDescription>
-                            Set your resale price in ETH. The price will be used directly on the blockchain marketplace.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <form onSubmit={handleListForResale} className="space-y-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="resale-price">Resale Price (ETH)</Label>
-                            <Input
-                              id="resale-price"
-                              type="text"
-                              placeholder="0.002"
-                              value={resalePriceEth}
-                              onChange={handlePriceChange}
-                              className={resalePriceError ? "border-red-500" : ""}
-                              disabled={isListing}
-                            />
-                            {resalePriceError && <div className="text-sm text-red-500">{resalePriceError}</div>}
-                            {resalePriceEth && !resalePriceError && (
-                              <div className="text-sm text-muted-foreground">
-                                ≈ ₹{ethToInr(Number.parseFloat(resalePriceEth)).toLocaleString("en-IN")}
-                              </div>
-                            )}
-                          </div>
-                          <Alert>
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertTitle>Important</AlertTitle>
-                            <AlertDescription>
-                              A 2.5% platform fee will be deducted from the final sale price.
-                            </AlertDescription>
-                          </Alert>
-                          <DialogFooter>
-                            <Button type="button" variant="outline" onClick={handleDialogClose} disabled={isListing}>
-                              Cancel
-                            </Button>
-                            <Button type="submit" disabled={isListing || !!resalePriceError || !resalePriceEth.trim()}>
-                              {isListing ? "Listing..." : "List for Resale"}
-                            </Button>
-                          </DialogFooter>
-                        </form>
-                      </DialogContent>
-                    </Dialog>
+                    // Only show "List for Resale" button if event is active
+                    eventActive && (
+                      <Dialog open={isResaleDialogOpen} onOpenChange={handleDialogClose}>
+                        <DialogTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            className="flex-1" 
+                            disabled={isListing}
+                            onClick={handleOpenResaleDialog}
+                          >
+                            List for Resale
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>List Ticket for Resale</DialogTitle>
+                            <DialogDescription>
+                              Set your resale price in ETH. The price will be used directly on the blockchain marketplace.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <form onSubmit={handleListForResale} className="space-y-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="resale-price">Resale Price (ETH)</Label>
+                              <Input
+                                id="resale-price"
+                                type="text"
+                                placeholder="0.002"
+                                value={resalePriceEth}
+                                onChange={handlePriceChange}
+                                className={resalePriceError ? "border-red-500" : ""}
+                                disabled={isListing}
+                              />
+                              {resalePriceError && <div className="text-sm text-red-500">{resalePriceError}</div>}
+                              {resalePriceEth && !resalePriceError && (
+                                <div className="text-sm text-muted-foreground">
+                                  ≈ ₹{ethToInr(Number.parseFloat(resalePriceEth)).toLocaleString("en-IN")}
+                                </div>
+                              )}
+                            </div>
+                            <Alert>
+                              <AlertCircle className="h-4 w-4" />
+                              <AlertTitle>Important</AlertTitle>
+                              <AlertDescription>
+                                A 2.5% platform fee will be deducted from the final sale price.
+                              </AlertDescription>
+                            </Alert>
+                            <DialogFooter>
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                onClick={() => handleDialogClose(false)} 
+                                disabled={isListing}
+                              >
+                                Cancel
+                              </Button>
+                              <Button type="submit" disabled={isListing || !!resalePriceError || !resalePriceEth.trim()}>
+                                {isListing ? "Listing..." : "List for Resale"}
+                              </Button>
+                            </DialogFooter>
+                          </form>
+                        </DialogContent>
+                      </Dialog>
+                    )
                   )
                 ) : (
                   <Button
@@ -586,6 +629,17 @@ const TicketDetails = () => {
                   Share
                 </Button>
               </div>
+
+              {/* Show message if event has ended and user is owner */}
+              {!eventActive && isOwner && !ticket.for_sale && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Event has ended</AlertTitle>
+                  <AlertDescription>
+                    This event has already taken place. Tickets can no longer be listed for resale.
+                  </AlertDescription>
+                </Alert>
+              )}
             </CardContent>
             <CardFooter className="bg-muted/50 flex flex-col items-start">
               <p className="text-sm text-muted-foreground mb-1">Owner Address</p>
@@ -635,7 +689,9 @@ const TicketDetails = () => {
               <p className="text-sm text-center text-muted-foreground">
                 {ticket.for_sale
                   ? "This ticket is currently listed for resale"
-                  : "Present this ticket at the venue entrance"}
+                  : eventActive 
+                    ? "Present this ticket at the venue entrance"
+                    : "This event has ended"}
               </p>
             </CardFooter>
           </Card>
