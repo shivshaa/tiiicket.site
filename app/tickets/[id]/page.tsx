@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { getTicketDetailsOptimized, invalidateTicketCaches } from "@/lib/marketplaceQueries"
+import { listTicketForResale, cancelTicketListing } from "@/lib/secondarySales"
 import { useWallet } from "@/components/wallet-provider"
 import { supabase } from "@/lib/supabaseClient"
 
@@ -58,6 +59,7 @@ export default function TicketDetailsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [listingStatus, setListingStatus] = useState({ status: "idle", message: "" })
   const [cancelStatus, setCancelStatus] = useState({ status: "idle", message: "" })
+  const [inputError, setInputError] = useState("")
   const { toast } = useToast()
   const isMounted = useRef(true)
   const channelRef = useRef(null)
@@ -269,12 +271,12 @@ export default function TicketDetailsPage() {
         setListingStatus,
       )
 
-      // Close dialog on success
+      // Close dialog and refresh on success
       if (listingStatus.status === "success") {
-        setDialogOpen(false)
+        handleDialogClose()
         // Invalidate cache and refetch
         invalidateTicketCaches(ticket.event_id, ticket.token_id)
-        fetchTicketDetails()
+        await fetchTicketDetails()
         toast({
           title: "Success",
           description: "Ticket listed for resale successfully!",
@@ -287,7 +289,7 @@ export default function TicketDetailsPage() {
         message: error.message || "Failed to list ticket for resale" 
       })
     }
-  }, [ticket, resalePriceEth, address, toast, fetchTicketDetails, validateResalePrice, listingStatus.status])
+  }, [ticket, resalePriceEth, address, toast, fetchTicketDetails, validateResalePrice, handleDialogClose])
 
   // Handle cancelling listing
   const handleCancelListing = useCallback(async () => {
@@ -350,14 +352,65 @@ export default function TicketDetailsPage() {
     }
   }, [ticket, toast])
 
-  // Handle price input change
-  const handlePriceChange = (e) => {
+  // Handle price input change with validation
+  const handlePriceChange = useCallback((e) => {
     const value = e.target.value
-    // Allow empty string, numbers, and decimal points
-    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-      setResalePriceEth(value)
+    
+    // Allow empty string
+    if (value === '') {
+      setResalePriceEth('')
+      setInputError('')
+      return
     }
-  }
+    
+    // Only allow valid decimal numbers
+    if (!/^\d*\.?\d*$/.test(value)) {
+      return // Don't update if invalid format
+    }
+    
+    // Prevent multiple decimal points
+    if ((value.match(/\./g) || []).length > 1) {
+      return
+    }
+    
+    // Limit decimal places to 6
+    if (value.includes('.') && value.split('.')[1].length > 6) {
+      return
+    }
+    
+    setResalePriceEth(value)
+    
+    // Real-time validation
+    if (value && ticket) {
+      const priceValue = parseFloat(value)
+      const originalPriceInEth = inrToEth(ticket.price)
+      
+      if (priceValue <= originalPriceInEth) {
+        setInputError(`Must be greater than ${originalPriceInEth.toFixed(6)} ETH`)
+      } else {
+        setInputError('')
+      }
+    }
+  }, [ticket])
+
+  // Handle dialog open
+  const handleDialogOpen = useCallback(() => {
+    if (ticket) {
+      const originalPriceInEth = inrToEth(ticket.price)
+      setResalePriceEth(originalPriceInEth.toFixed(6))
+      setInputError('')
+      setListingStatus({ status: "idle", message: "" })
+    }
+    setDialogOpen(true)
+  }, [ticket])
+
+  // Handle dialog close
+  const handleDialogClose = useCallback(() => {
+    setDialogOpen(false)
+    setResalePriceEth('')
+    setInputError('')
+    setListingStatus({ status: "idle", message: "" })
+  }, [])
 
   // Loading state
   if (loading) {
@@ -430,9 +483,7 @@ export default function TicketDetailsPage() {
   const isOwner = address && ticket.owner_address.toLowerCase() === address.toLowerCase()
 
   // Calculate prices for display
-  const originalPriceInEth = inrToEth(ticket.price)
-  const resalePriceInInr = resalePriceEth ? ethToInr(parseFloat(resalePriceEth)) : 0
-  const validation = validateResalePrice()
+  const originalPriceInEth = ticket ? inrToEth(ticket.price) : 0
 
   return (
     <div className="container mx-auto py-10 px-4">
@@ -556,12 +607,12 @@ export default function TicketDetailsPage() {
                   ) : (
                     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                       <DialogTrigger asChild>
-                        <Button className="flex-1">
+                        <Button className="flex-1" onClick={handleDialogOpen}>
                           <Tag className="mr-2 h-4 w-4" />
                           List for Resale
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="sm:max-w-[425px]">
+                      <DialogContent className="sm:max-w-[425px]" onInteractOutside={(e) => e.preventDefault()}>
                         <DialogHeader>
                           <DialogTitle>List Ticket for Resale</DialogTitle>
                           <DialogDescription>
@@ -573,36 +624,33 @@ export default function TicketDetailsPage() {
                             <Label htmlFor="resalePrice" className="text-right">
                               Price (ETH)
                             </Label>
-                            <Input
-                              id="resalePrice"
-                              type="text"
-                              value={resalePriceEth}
-                              onChange={handlePriceChange}
-                              className="col-span-3"
-                              placeholder="0.000000"
-                              step="0.000001"
-                            />
+                            <div className="col-span-3">
+                              <Input
+                                id="resalePrice"
+                                type="text"
+                                value={resalePriceEth}
+                                onChange={handlePriceChange}
+                                placeholder="0.000000"
+                                className={inputError ? "border-red-500" : ""}
+                                autoComplete="off"
+                              />
+                              {inputError && (
+                                <p className="text-red-500 text-xs mt-1">{inputError}</p>
+                              )}
+                            </div>
                           </div>
                           
                           {/* Price conversion display */}
-                          {resalePriceEth && !isNaN(parseFloat(resalePriceEth)) && (
+                          {resalePriceEth && !isNaN(parseFloat(resalePriceEth)) && !inputError && (
                             <div className="text-sm text-muted-foreground">
-                              ≈ ₹{resalePriceInInr.toLocaleString()}
+                              ≈ ₹{ethToInr(parseFloat(resalePriceEth)).toLocaleString()}
                             </div>
                           )}
 
                           {/* Original price reference */}
                           <div className="text-sm text-muted-foreground">
-                            Original price: {originalPriceInEth.toFixed(6)} ETH (₹{ticket.price.toLocaleString()})
+                            Original price: {inrToEth(ticket.price).toFixed(6)} ETH (₹{ticket.price.toLocaleString()})
                           </div>
-
-                          {/* Validation error */}
-                          {!validation.isValid && resalePriceEth && (
-                            <Alert variant="destructive">
-                              <AlertCircle className="h-4 w-4" />
-                              <AlertDescription>{validation.error}</AlertDescription>
-                            </Alert>
-                          )}
 
                           <Alert>
                             <AlertCircle className="h-4 w-4" />
@@ -613,7 +661,7 @@ export default function TicketDetailsPage() {
                             </AlertDescription>
                           </Alert>
 
-                          {listingStatus.status !== "idle" && listingStatus.status !== "success" && (
+                          {listingStatus.status !== "idle" && (
                             <Alert variant={listingStatus.status === "error" ? "destructive" : "default"}>
                               <AlertTitle>{listingStatus.status === "error" ? "Error" : "Status"}</AlertTitle>
                               <AlertDescription>{listingStatus.message}</AlertDescription>
@@ -623,7 +671,7 @@ export default function TicketDetailsPage() {
                         <DialogFooter>
                           <Button
                             variant="outline"
-                            onClick={() => setDialogOpen(false)}
+                            onClick={handleDialogClose}
                             disabled={listingStatus.status === "preparing" || 
                                      listingStatus.status === "wallet-confirm" || 
                                      listingStatus.status === "blockchain-pending"}
@@ -633,7 +681,8 @@ export default function TicketDetailsPage() {
                           <Button
                             onClick={handleListForSale}
                             disabled={
-                              !validation.isValid ||
+                              !resalePriceEth ||
+                              !!inputError ||
                               listingStatus.status === "preparing" ||
                               listingStatus.status === "wallet-confirm" ||
                               listingStatus.status === "blockchain-pending" ||
@@ -646,11 +695,11 @@ export default function TicketDetailsPage() {
                                 ? "Confirm in Wallet..."
                                 : listingStatus.status === "blockchain-pending"
                                   ? "Confirming..."
-                                  : listingStatus.status === "blockchain-success"
-                                    ? "Updating..."
-                                    : listingStatus.status === "database-pending"
-                                      ? "Finalizing..."
-                                      : "List Ticket"}
+                                : listingStatus.status === "blockchain-success"
+                                  ? "Updating..."
+                                  : listingStatus.status === "database-pending"
+                                    ? "Finalizing..."
+                                    : "List Ticket"}
                           </Button>
                         </DialogFooter>
                       </DialogContent>
