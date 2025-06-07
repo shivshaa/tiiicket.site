@@ -23,7 +23,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { getTicketDetailsOptimized, invalidateTicketCaches } from "@/lib/marketplaceQueries"
-import { listTicketForResale, cancelTicketListing } from "@/lib/secondarySales"
 import { useWallet } from "@/components/wallet-provider"
 import { supabase } from "@/lib/supabaseClient"
 
