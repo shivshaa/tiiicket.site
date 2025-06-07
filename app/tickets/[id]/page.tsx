@@ -227,6 +227,25 @@ export default function TicketDetailsPage() {
     return { isValid: true, error: null }
   }, [ticket, resalePriceEth])
 
+  // Handle dialog open
+  const handleDialogOpen = useCallback(() => {
+    if (ticket) {
+      const originalPriceInEth = inrToEth(ticket.price)
+      setResalePriceEth(originalPriceInEth.toFixed(6))
+      setInputError('')
+      setListingStatus({ status: "idle", message: "" })
+    }
+    setDialogOpen(true)
+  }, [ticket])
+
+  // Handle dialog close
+  const handleDialogClose = useCallback(() => {
+    setDialogOpen(false)
+    setResalePriceEth('')
+    setInputError('')
+    setListingStatus({ status: "idle", message: "" })
+  }, [])
+  
   // Handle listing ticket for resale
   const handleListForSale = useCallback(async () => {
     if (!ticket || !address) return
@@ -393,24 +412,7 @@ export default function TicketDetailsPage() {
     }
   }, [ticket])
 
-  // Handle dialog open
-  const handleDialogOpen = useCallback(() => {
-    if (ticket) {
-      const originalPriceInEth = inrToEth(ticket.price)
-      setResalePriceEth(originalPriceInEth.toFixed(6))
-      setInputError('')
-      setListingStatus({ status: "idle", message: "" })
-    }
-    setDialogOpen(true)
-  }, [ticket])
-
-  // Handle dialog close
-  const handleDialogClose = useCallback(() => {
-    setDialogOpen(false)
-    setResalePriceEth('')
-    setInputError('')
-    setListingStatus({ status: "idle", message: "" })
-  }, [])
+  //open close dialong functions
 
   // Loading state
   if (loading) {
