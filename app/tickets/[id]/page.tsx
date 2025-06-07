@@ -245,7 +245,7 @@ export default function TicketDetailsPage() {
     setInputError('')
     setListingStatus({ status: "idle", message: "" })
   }, [])
-  
+
   // Handle listing ticket for resale
   const handleListForSale = useCallback(async () => {
     if (!ticket || !address) return
@@ -371,16 +371,17 @@ export default function TicketDetailsPage() {
     }
   }, [ticket, toast])
 
-  // Handle price input change with validation
-  const handlePriceChange = useCallback((e) => {
+  // Handle price input change with INR preview
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
-    
-    // Allow empty string
-    if (value === '') {
-      setResalePriceEth('')
-      setInputError('')
-      return
+    setResalePriceEth(value)
+
+    if (value && value.trim() !== "") {
+      validateEthPrice(value)
+    } else {
+      setResalePriceError("")
     }
+  }
     
     // Only allow valid decimal numbers
     if (!/^\d*\.?\d*$/.test(value)) {
