@@ -242,7 +242,7 @@ export default function EventPage({ params }: { params: { id: string } }) {
   }
 
   const handleViewMarketplace = () => {
-    router.push(`/market/events/${eventId}`)
+    router.push(`/market/event/${eventId}`)
   }
 
   if (loading) {
