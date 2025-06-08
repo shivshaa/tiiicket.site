@@ -132,7 +132,7 @@ export function TrendingEvents() {
             }}
           >
             <div className="p-4 rounded-2xl bg-gradient-to-r from-orange-500 to-red-500 shadow-2xl relative">
-              <Flame  className="h-8 w-8 text-white" />
+              <Flame className="h-8 w-8 text-white" />
               
               {/* Glow Effect */}
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-orange-500 to-red-500 blur-lg opacity-60 -z-10" />
