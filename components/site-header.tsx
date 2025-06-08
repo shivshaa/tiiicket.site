@@ -136,7 +136,7 @@ export function SiteHeader() {
 
           <Button
             variant="ghost"
-            className="flex flex-col items-center h-auto py-2 hover:bg-green-500 hover:text-white"
+            className="flex flex-col items-center h-auto py-2 hover:bg-red-500 hover:text-white"
             asChild
           >
             <Link href="/organizer/dashboard">
