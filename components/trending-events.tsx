@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar, MapPin, Tag, TrendingUp, Zap, Fire } from "lucide-react"
+import { Calendar, MapPin, Tag, TrendingUp, Zap, Flame } from "lucide-react"
 import { motion } from "framer-motion"
 import Link from "next/link"
 import { getTrendingEvents } from "@/lib/supabase"
@@ -90,7 +90,7 @@ export function TrendingEvents() {
     },
   }
 
-  const trendingIcons = [Fire, Zap, TrendingUp]
+  const trendingIcons = [Flame, Zap, TrendingUp]
 
   return (
     <section className="py-20 relative overflow-hidden">
