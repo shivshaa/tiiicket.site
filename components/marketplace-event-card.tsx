@@ -20,7 +20,7 @@ import { supabase } from "@/lib/supabaseClient"
 const ticketCache = new Map()
 
 // Use memo to prevent unnecessary re-renders
-const MarketplaceEventCard = memo(function MarketplaceEventCard({ event }) {
+const MarketplaceEventCard = memo(function MarketplaceEventCard({ event, showResaleInfo = true }) {
   const [tickets, setTickets] = useState([])
   const [loading, setLoading] = useState(true)
   const [buyingTicket, setBuyingTicket] = useState(null)
@@ -80,34 +80,39 @@ const MarketplaceEventCard = memo(function MarketplaceEventCard({ event }) {
   useEffect(() => {
     isMounted.current = true
 
-    fetchTickets()
+    // Only fetch tickets if we need to show resale info
+    if (showResaleInfo) {
+      fetchTickets()
 
-    // Set up real-time listener for this event's tickets
-    try {
-      const channel = supabase
-        .channel(`secondary_sales_${event.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "secondary_sales",
-            filter: `event_id=eq.${event.id}`,
-          },
-          (payload) => {
-            console.log("Real-time update:", payload)
-            // Invalidate cache on changes
-            ticketCache.delete(cacheKey)
-            if (isMounted.current) {
-              fetchTickets()
-            }
-          },
-        )
-        .subscribe()
+      // Set up real-time listener for this event's tickets
+      try {
+        const channel = supabase
+          .channel(`secondary_sales_${event.id}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "secondary_sales",
+              filter: `event_id=eq.${event.id}`,
+            },
+            (payload) => {
+              console.log("Real-time update:", payload)
+              // Invalidate cache on changes
+              ticketCache.delete(cacheKey)
+              if (isMounted.current) {
+                fetchTickets()
+              }
+            },
+          )
+          .subscribe()
 
-      channelRef.current = channel
-    } catch (error) {
-      console.error("Error setting up real-time listener:", error)
+        channelRef.current = channel
+      } catch (error) {
+        console.error("Error setting up real-time listener:", error)
+      }
+    } else {
+      setLoading(false)
     }
 
     return () => {
@@ -122,7 +127,7 @@ const MarketplaceEventCard = memo(function MarketplaceEventCard({ event }) {
         }
       }
     }
-  }, [event.id, fetchTickets, cacheKey])
+  }, [event.id, fetchTickets, cacheKey, showResaleInfo])
 
   const handleBuyTicket = useCallback(
     async (ticket) => {
@@ -177,6 +182,11 @@ const MarketplaceEventCard = memo(function MarketplaceEventCard({ event }) {
         <Badge className="absolute top-2 right-2" variant="secondary">
           {event.category || "Event"}
         </Badge>
+        {!showResaleInfo && (
+          <Badge className="absolute top-2 left-2" variant="outline">
+            Past Event
+          </Badge>
+        )}
       </div>
 
       <CardHeader className="pb-2">
@@ -197,71 +207,101 @@ const MarketplaceEventCard = memo(function MarketplaceEventCard({ event }) {
           {event.description || "No description available"}
         </p>
 
-        <h3 className="font-semibold mb-2 flex items-center gap-2">
-          <Ticket className="h-4 w-4" />
-          Available Tickets
-        </h3>
+        {showResaleInfo ? (
+          <>
+            <h3 className="font-semibold mb-2 flex items-center gap-2">
+              <Ticket className="h-4 w-4" />
+              Available Tickets
+            </h3>
 
-        {loading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-          </div>
-        ) : tickets.length > 0 ? (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Seat</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Seller</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tickets.slice(0, 3).map((ticket) => (
-                  <TableRow key={ticket.token_id}>
-                    <TableCell className="font-medium">
-                      {ticket.tickets?.seat_info || `Ticket #${ticket.token_id}`}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-semibold">{ticket.resale_price} ETH</span>
-                        <span className="text-xs text-muted-foreground">
-                          ₹{ethToInr(ticket.resale_price).toLocaleString()}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-xs">{truncateAddress(ticket.seller_address)}</TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        onClick={() => handleBuyTicket(ticket)}
-                        disabled={buyingTicket === ticket.token_id}
-                        className="w-full"
-                      >
-                        {buyingTicket === ticket.token_id ? "Processing..." : "Buy"}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+            {loading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+              </div>
+            ) : tickets.length > 0 ? (
+              <>
+                <div className="mb-3">
+                  <Badge variant="outline" className="text-green-600 border-green-200">
+                    {tickets.length} ticket{tickets.length !== 1 ? 's' : ''} available
+                  </Badge>
+                </div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Seat</TableHead>
+                        <TableHead>Price</TableHead>
+                        <TableHead>Seller</TableHead>
+                        <TableHead></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {tickets.slice(0, 3).map((ticket) => (
+                        <TableRow key={ticket.token_id}>
+                          <TableCell className="font-medium">
+                            {ticket.tickets?.seat_info || `Ticket #${ticket.token_id}`}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-semibold">{ticket.resale_price} ETH</span>
+                              <span className="text-xs text-muted-foreground">
+                                ₹{ethToInr(ticket.resale_price).toLocaleString()}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs">{truncateAddress(ticket.seller_address)}</TableCell>
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              onClick={() => handleBuyTicket(ticket)}
+                              disabled={buyingTicket === ticket.token_id}
+                              className="w-full"
+                            >
+                              {buyingTicket === ticket.token_id ? "Processing..." : "Buy"}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                {tickets.length > 3 && (
+                  <p className="text-xs text-center mt-2 text-muted-foreground">
+                    +{tickets.length - 3} more ticket{tickets.length - 3 !== 1 ? 's' : ''} available
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-4">
+                <Badge variant="outline" className="text-gray-500 border-gray-200 mb-2">
+                  No tickets available for resale
+                </Badge>
+                <p className="text-sm text-muted-foreground">Check back later for resale tickets</p>
+              </div>
+            )}
+          </>
         ) : (
-          <p className="text-sm text-muted-foreground italic">No tickets available for resale</p>
-        )}
-
-        {tickets.length > 3 && (
-          <p className="text-xs text-center mt-2 text-muted-foreground">+{tickets.length - 3} more tickets available</p>
+          <div className="text-center py-6">
+            <Badge variant="secondary" className="mb-2">
+              Event Completed
+            </Badge>
+            <p className="text-sm text-muted-foreground">This event has already taken place</p>
+          </div>
         )}
       </CardContent>
 
       <CardFooter className="pt-0">
-        <Button variant="outline" className="w-full" onClick={() => router.push(`/market/event/${event.id}`)}>
-          View All Tickets
-        </Button>
+        {showResaleInfo ? (
+          <Button variant="outline" className="w-full" onClick={() => router.push(`/market/event/${event.id}`)}>
+            View All Tickets
+          </Button>
+        ) : (
+          <Button variant="outline" className="w-full" onClick={() => router.push(`/events/${event.id}`)}>
+            View Event Details
+          </Button>
+        )}
       </CardFooter>
     </Card>
   )
