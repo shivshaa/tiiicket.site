@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { format } from "date-fns"
 import { getEventById } from "@/lib/supabase"
 import { getTicketsListedForEventOptimized } from "@/lib/marketplaceQueries"
 import { ethToInr } from "@/lib/contract"
@@ -14,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { LazyImage } from "@/components/ui/lazy-image"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Calendar, MapPin, Tag, Ticket, ArrowLeft, Info, RefreshCw } from "lucide-react"
+import { Calendar, MapPin, Tag, Ticket, ArrowLeft, Info, RefreshCw, Clock, Users, Star, Shield, TrendingUp, Eye } from "lucide-react"
 import { supabase } from "@/lib/supabaseClient"
 
 export default function EventMarketplacePage({ params }) {
@@ -186,35 +185,84 @@ export default function EventMarketplacePage({ params }) {
 
   const formatDate = useCallback((dateString) => {
     try {
-      return format(new Date(dateString), "MMMM dd, yyyy")
+      const date = new Date(dateString)
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      })
     } catch (e) {
       return dateString || "TBA"
     }
   }, [])
 
+  const getPriceStatus = useCallback((resalePrice, originalPrice) => {
+    if (!originalPrice) return { status: "unknown", color: "text-slate-500", label: "N/A" }
+    const increase = ((resalePrice - originalPrice) / originalPrice) * 100
+    if (increase > 20) return { status: "high", color: "text-red-500", label: `+${Math.round(increase)}%` }
+    if (increase > 0) return { status: "medium", color: "text-yellow-500", label: `+${Math.round(increase)}%` }
+    return { status: "fair", color: "text-green-500", label: "Fair Price" }
+  }, [])
+
+  const getListingAge = useCallback((listedAt) => {
+    if (!listedAt) return "Recently"
+    const now = new Date()
+    const listed = new Date(listedAt)
+    const diffHours = Math.floor((now - listed) / (1000 * 60 * 60))
+    
+    if (diffHours < 1) return "Just listed"
+    if (diffHours < 24) return `${diffHours}h ago`
+    const diffDays = Math.floor(diffHours / 24)
+    return `${diffDays}d ago`
+  }, [])
+
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center mb-6">
-          <Button variant="ghost" size="sm" className="mr-2" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+        {/* Header */}
+        <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/50">
+          <div className="container mx-auto px-6 py-4">
+            <div className="flex items-center gap-4">
+              <Skeleton className="h-10 w-20" />
+              <div>
+                <Skeleton className="h-8 w-48 mb-1" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="md:col-span-2">
-            <Skeleton className="h-[300px] w-full rounded-lg mb-4" />
-            <Skeleton className="h-10 w-3/4 mb-2" />
-            <Skeleton className="h-6 w-1/2 mb-4" />
-            <Skeleton className="h-4 w-full mb-2" />
-            <Skeleton className="h-4 w-full mb-2" />
-            <Skeleton className="h-4 w-3/4" />
-          </div>
-
-          <div>
-            <Skeleton className="h-10 w-full mb-4" />
-            <Skeleton className="h-[400px] w-full rounded-lg" />
+        <div className="container mx-auto px-6 py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="lg:col-span-5">
+              <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200/50">
+                <Skeleton className="aspect-video w-full" />
+                <div className="p-6">
+                  <Skeleton className="h-8 w-3/4 mb-4" />
+                  <div className="space-y-3 mb-6">
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-2/3" />
+                  </div>
+                  <Skeleton className="h-20 w-full mb-6" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <Skeleton className="h-16 w-full" />
+                    <Skeleton className="h-16 w-full" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="lg:col-span-7">
+              <div className="bg-white rounded-3xl shadow-xl border border-slate-200/50">
+                <div className="p-6">
+                  <Skeleton className="h-6 w-48 mb-2" />
+                  <Skeleton className="h-4 w-32 mb-4" />
+                </div>
+                <div className="p-6">
+                  <Skeleton className="h-64 w-full" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -223,161 +271,326 @@ export default function EventMarketplacePage({ params }) {
 
   if (error || !event) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold mb-4">Event Not Found</h1>
-        <p className="mb-6">The event you're looking for doesn't exist or has been removed.</p>
-        <Button onClick={() => router.push("/market")}>Return to Marketplace</Button>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Event Not Found</h1>
+          <p className="mb-6 text-slate-600">The event you're looking for doesn't exist or has been removed.</p>
+          <Button onClick={() => router.push("/market")}>Return to Marketplace</Button>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center mb-6">
-        <Button variant="ghost" size="sm" className="mr-2" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
-        <h1 className="text-2xl font-bold">Marketplace</h1>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+      {/* Header */}
+      <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/50">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => router.back()}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors text-slate-700 hover:text-slate-900"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span className="font-medium">Back</span>
+              </button>
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                  Ticket Marketplace
+                </h1>
+                <p className="text-slate-500 text-sm">Secure secondary ticket sales</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 px-3 py-2 bg-green-50 text-green-700 rounded-full text-sm font-medium">
+                <Shield className="h-4 w-4" />
+                Verified Listings
+              </div>
+              <button 
+                onClick={handleRefreshTickets}
+                disabled={ticketsLoading}
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors"
+              >
+                <RefreshCw className={`h-4 w-4 text-slate-600 ${ticketsLoading ? "animate-spin" : ""}`} />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="md:col-span-2">
-          <Card className="overflow-hidden">
-            <div className="aspect-video relative">
-              <LazyImage
-                src={event.event_image_url || "/placeholder.svg?height=400&width=800"}
-                alt={event.name}
-                className="object-cover w-full h-full"
-              />
-              <div className="absolute top-4 right-4 flex flex-col gap-2">
-                <Badge variant={event.status === "active" ? "success" : "secondary"}>{event.status || "Active"}</Badge>
-                <Badge variant="outline" className="bg-background/80 backdrop-blur-sm">
-                  {event.category || "Event"}
-                </Badge>
+      <div className="container mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Event Details - Left Side */}
+          <div className="lg:col-span-5">
+            <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200/50">
+              {/* Event Image */}
+              <div className="relative aspect-video overflow-hidden">
+                <LazyImage
+                  src={event.event_image_url || "/placeholder.svg?height=400&width=800"}
+                  alt={event.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                <div className="absolute top-4 right-4 flex flex-col gap-2">
+                  <div className="px-3 py-1 bg-green-500 text-white text-sm font-medium rounded-full">
+                    {event.status === "active" ? "Live" : event.status}
+                  </div>
+                  <div className="px-3 py-1 bg-white/90 backdrop-blur-sm text-slate-700 text-sm font-medium rounded-full">
+                    {event.category || "Event"}
+                  </div>
+                </div>
+                {event.max_tickets && (
+                  <div className="absolute bottom-4 left-4 right-4">
+                    <div className="flex items-center gap-2 text-white/90 text-sm font-medium mb-2">
+                      <Eye className="h-4 w-4" />
+                      {event.max_tickets.toLocaleString()} total capacity
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Event Info */}
+              <div className="p-6">
+                <h2 className="text-2xl font-bold text-slate-900 mb-4">{event.name}</h2>
+                
+                <div className="space-y-3 mb-6">
+                  <div className="flex items-center gap-3 text-slate-600">
+                    <div className="p-2 bg-blue-50 rounded-lg">
+                      <Calendar className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-slate-900">{formatDate(event.date)}</p>
+                      {event.time && <p className="text-sm">{event.time}</p>}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 text-slate-600">
+                    <div className="p-2 bg-purple-50 rounded-lg">
+                      <MapPin className="h-4 w-4 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-slate-900">{event.location || "Location TBA"}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 text-slate-600">
+                    <div className="p-2 bg-green-50 rounded-lg">
+                      <Tag className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-500">Original Price</p>
+                      <p className="font-semibold text-slate-900">
+                        {event.ticket_price} ETH 
+                        <span className="text-slate-500 font-normal ml-1">
+                          (₹{ethToInr(event.ticket_price).toLocaleString()})
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 rounded-2xl p-4 mb-6">
+                  <h3 className="font-semibold text-slate-900 mb-2">About this event</h3>
+                  <p className="text-slate-600 text-sm leading-relaxed">
+                    {event.description || "No description available for this event."}
+                  </p>
+                </div>
+
+                {/* Stats */}
+                {event.max_tickets && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Users className="h-4 w-4 text-blue-600" />
+                        <span className="text-sm text-blue-700 font-medium">Capacity</span>
+                      </div>
+                      <p className="text-xl font-bold text-blue-900">{event.max_tickets.toLocaleString()}</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Ticket className="h-4 w-4 text-green-600" />
+                        <span className="text-sm text-green-700 font-medium">Available</span>
+                      </div>
+                      <p className="text-xl font-bold text-green-900">{tickets.length}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Tickets Table - Right Side */}
+          <div className="lg:col-span-7">
+            <div className="bg-white rounded-3xl shadow-xl border border-slate-200/50 overflow-hidden">
+              {/* Header */}
+              <div className="p-6 border-b border-slate-200/50">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                      <Ticket className="h-5 w-5 text-blue-600" />
+                      Available Tickets
+                    </h3>
+                    <p className="text-slate-500 text-sm mt-1">
+                      {tickets.length} ticket{tickets.length !== 1 ? "s" : ""} available for resale
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg text-sm text-slate-600">
+                      <Clock className="h-4 w-4" />
+                      Live updates
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Price Legend */}
+                <div className="flex items-center gap-4 text-xs">
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-slate-600">Fair Price</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    <span className="text-slate-600">Premium</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                    <span className="text-slate-600">High Premium</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-x-auto">
+                {ticketsLoading ? (
+                  <div className="p-6 space-y-3">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
+                ) : tickets.length > 0 ? (
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50/50">
+                        <th className="text-left py-4 px-6 text-sm font-semibold text-slate-700">Seat Details</th>
+                        <th className="text-left py-4 px-6 text-sm font-semibold text-slate-700">Price</th>
+                        <th className="text-left py-4 px-6 text-sm font-semibold text-slate-700">Seller</th>
+                        <th className="text-left py-4 px-6 text-sm font-semibold text-slate-700">Listed</th>
+                        <th className="text-center py-4 px-6 text-sm font-semibold text-slate-700">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tickets.map((ticket, index) => {
+                        const priceStatus = getPriceStatus(ticket.resale_price, event.ticket_price)
+                        return (
+                          <tr 
+                            key={ticket.token_id} 
+                            className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors group"
+                          >
+                            <td className="py-4 px-6">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                                  {index + 1}
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-slate-900 text-sm">
+                                    {ticket.tickets?.seat_info || `Ticket #${ticket.token_id}`}
+                                  </p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <div className="flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 rounded-full text-xs font-medium">
+                                      <Shield className="h-3 w-3" />
+                                      Verified
+                                    </div>
+                                    <span className="text-xs text-slate-500">ID: {ticket.token_id}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-4 px-6">
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-slate-900">{ticket.resale_price} ETH</span>
+                                  <span className={`text-xs font-medium ${priceStatus.color}`}>
+                                    {priceStatus.label}
+                                  </span>
+                                </div>
+                                <span className="text-sm text-slate-500">
+                                  ₹{ethToInr(ticket.resale_price).toLocaleString()}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-4 px-6">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 bg-gradient-to-br from-slate-400 to-slate-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                  {ticket.seller_address ? ticket.seller_address.slice(2, 4).toUpperCase() : "??"}
+                                </div>
+                                <div>
+                                  <p className="font-mono text-sm text-slate-700">
+                                    {truncateAddress(ticket.seller_address)}
+                                  </p>
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    <Star className="h-3 w-3 text-yellow-500 fill-current" />
+                                    <span className="text-xs text-slate-500">Verified</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-4 px-6">
+                              <span className="text-sm text-slate-600">
+                                {getListingAge(ticket.listed_at)}
+                              </span>
+                            </td>
+                            <td className="py-4 px-6 text-center">
+                              <button
+                                onClick={() => handleBuyTicket(ticket)}
+                                disabled={buyingTicket === ticket.token_id}
+                                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                              >
+                                {buyingTicket === ticket.token_id ? (
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    Processing
+                                  </div>
+                                ) : (
+                                  "Purchase"
+                                )}
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="text-center py-16">
+                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Info className="h-8 w-8 text-slate-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">No tickets available</h3>
+                    <p className="text-slate-500 max-w-sm mx-auto">
+                      There are currently no tickets listed for resale for this event. Check back later for new listings.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
-            <CardHeader>
-              <CardTitle className="text-2xl">{event.name}</CardTitle>
-              <CardDescription className="flex items-center gap-1 text-base">
-                <Calendar className="h-4 w-4" />
-                {formatDate(event.date)}
-                {event.time && ` • ${event.time}`}
-              </CardDescription>
-              <CardDescription className="flex items-center gap-1 text-base">
-                <MapPin className="h-4 w-4" />
-                {event.location || "Location TBA"}
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent>
-              <h3 className="font-semibold mb-2">About this event</h3>
-              <p className="text-muted-foreground mb-6">
-                {event.description || "No description available for this event."}
-              </p>
-
-              <div className="flex items-center gap-2 mb-2">
-                <Tag className="h-4 w-4" />
-                <h3 className="font-semibold">Original Ticket Price:</h3>
-                <span>{event.ticket_price} ETH</span>
-                <span className="text-sm text-muted-foreground">
-                  (₹{ethToInr(event.ticket_price).toLocaleString()})
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Ticket className="h-4 w-4" />
-                <h3 className="font-semibold">Max Tickets:</h3>
-                <span>{event.max_tickets}</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Ticket className="h-5 w-5" />
-                  Available Tickets
-                </CardTitle>
-                <CardDescription>
-                  {tickets.length} ticket{tickets.length !== 1 ? "s" : ""} available for resale
-                </CardDescription>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleRefreshTickets}
-                disabled={ticketsLoading}
-                className="h-8 w-8 p-0"
-              >
-                <RefreshCw className={`h-4 w-4 ${ticketsLoading ? "animate-spin" : ""}`} />
-                <span className="sr-only">Refresh</span>
-              </Button>
-            </CardHeader>
-
-            <CardContent>
-              {ticketsLoading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-8 w-full" />
-                  <Skeleton className="h-8 w-full" />
-                  <Skeleton className="h-8 w-full" />
+            {/* Trust & Security Notice */}
+            <div className="mt-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border border-blue-200/50">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Shield className="h-5 w-5 text-blue-600" />
                 </div>
-              ) : tickets.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Seat Info</TableHead>
-                        <TableHead>Price</TableHead>
-                        <TableHead>Seller</TableHead>
-                        <TableHead></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {tickets.map((ticket) => (
-                        <TableRow key={ticket.token_id}>
-                          <TableCell className="font-medium">
-                            {ticket.tickets?.seat_info || `Ticket #${ticket.token_id}`}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className="font-semibold">{ticket.resale_price} ETH</span>
-                              <span className="text-xs text-muted-foreground">
-                                ₹{ethToInr(ticket.resale_price).toLocaleString()}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs">{truncateAddress(ticket.seller_address)}</TableCell>
-                          <TableCell>
-                            <Button
-                              size="sm"
-                              onClick={() => handleBuyTicket(ticket)}
-                              disabled={buyingTicket === ticket.token_id}
-                              className="w-full"
-                            >
-                              {buyingTicket === ticket.token_id ? "Processing..." : "Buy"}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Info className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                  <h3 className="font-semibold mb-1">No tickets available</h3>
-                  <p className="text-sm text-muted-foreground">
-                    There are currently no tickets listed for resale for this event.
+                <div>
+                  <h4 className="font-semibold text-slate-900 mb-1">Secure Marketplace</h4>
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    All tickets are verified through blockchain technology. Sellers are rated and reviewed. 
+                    Your purchase is protected with our buyer guarantee program.
                   </p>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
