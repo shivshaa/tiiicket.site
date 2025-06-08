@@ -166,17 +166,21 @@ export function TrendingEvents() {
             </div>
           </motion.div>
 
-          <motion.h2 
-            className="text-5xl md:text-6xl font-black tracking-tight mb-4"
+          <motion.h2
+            className="flex items-center text-left text-xl md:text-2xl font-semibold tracking-tight text-white mb-4 space-x-2"
             initial={{ opacity: 0, scale: 0.5 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
-            <span className="bg-gradient-to-r from-red-400 via-orange-400 to-white-400 bg-clip-text text-transparent">
-              Trending
-            </span>{" "}
-            <span className="text-white">Events</span>
+            <span className="animate-bounce">🔥</span>
+            <span>
+              <span className="bg-gradient-to-r from-red-400 via-orange-400 to-white bg-clip-text text-transparent">
+                Trending
+              </span>{" "}
+              <span className="text-white">Events</span>
+            </span>
           </motion.h2>
+
           
           <motion.div
             className="flex items-center gap-2 mb-4"
