@@ -95,7 +95,7 @@ export function TrendingEvents() {
   return (
     <section className="py-20 relative overflow-hidden">
       {/* Dynamic Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">
+      <div className="absolute inset-0 bg-gradient-to-br from-black via-gray-900 to-gray-800">
         <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/10 via-transparent to-orange-500/10" />
         
         {/* Animated Background Elements */}
