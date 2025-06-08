@@ -172,7 +172,7 @@ export function TrendingEvents() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
-            <span className="bg-gradient-to-r from-white-400 via-blue-400 to-white-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-red-400 via-orange-400 to-white-400 bg-clip-text text-transparent">
               Trending
             </span>{" "}
             <span className="text-white">Events</span>
