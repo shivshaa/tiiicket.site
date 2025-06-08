@@ -14,6 +14,7 @@ export default function MarketplacePage() {
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeCategory, setActiveCategory] = useState("all")
+  const [eventStatus, setEventStatus] = useState("active") // "active" or "past"
   const [categories, setCategories] = useState(["all"])
   const router = useRouter()
   const { address } = useWallet()
@@ -31,17 +32,7 @@ export default function MarketplacePage() {
 
       if (!isMounted.current) return
 
-      // Only show active events in the marketplace
-      const activeEvents = allEvents.filter((event) => event.status === "active")
-
-      // Extract unique categories
-      const uniqueCategories = [
-        "all",
-        ...new Set(activeEvents.map((event) => event.category?.toLowerCase() || "other")),
-      ]
-
-      setEvents(activeEvents)
-      setCategories(uniqueCategories)
+      setEvents(allEvents)
       fetchedRef.current = true
     } catch (error) {
       console.error("Error fetching events:", error)
@@ -70,14 +61,42 @@ export default function MarketplacePage() {
 
   // Memoize the filtered events to prevent unnecessary re-renders
   const filteredEvents = useCallback(() => {
-    return activeCategory === "all"
-      ? events
-      : events.filter((event) => (event.category?.toLowerCase() || "other") === activeCategory)
-  }, [events, activeCategory])
+    // First filter by event status (active/past)
+    const statusFilteredEvents = eventStatus === "active" 
+      ? events.filter(event => event.status === "active")
+      : events.filter(event => event.status !== "active")
+    
+    // Then filter by category
+    const categoryFilteredEvents = activeCategory === "all"
+      ? statusFilteredEvents
+      : statusFilteredEvents.filter((event) => (event.category?.toLowerCase() || "other") === activeCategory)
+
+    return categoryFilteredEvents
+  }, [events, activeCategory, eventStatus])
+
+  // Update categories based on current event status
+  useEffect(() => {
+    const statusFilteredEvents = eventStatus === "active" 
+      ? events.filter(event => event.status === "active")
+      : events.filter(event => event.status !== "active")
+
+    const uniqueCategories = [
+      "all",
+      ...new Set(statusFilteredEvents.map((event) => event.category?.toLowerCase() || "other")),
+    ]
+
+    setCategories(uniqueCategories)
+    setActiveCategory("all") // Reset category when switching event status
+  }, [events, eventStatus])
 
   // Handle category change
   const handleCategoryChange = useCallback((category) => {
     setActiveCategory(category)
+  }, [])
+
+  // Handle event status change
+  const handleEventStatusChange = useCallback((status) => {
+    setEventStatus(status)
   }, [])
 
   return (
@@ -89,13 +108,23 @@ export default function MarketplacePage() {
         </div>
       </div>
 
-      <Tabs defaultValue="all" className="mb-8">
+      {/* Event Status Toggle */}
+      <div className="mb-6">
+        <Tabs value={eventStatus} onValueChange={handleEventStatusChange} className="mb-4">
+          <TabsList>
+            <TabsTrigger value="active">Active Events</TabsTrigger>
+            <TabsTrigger value="past">Past Events</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
+      {/* Category Filter */}
+      <Tabs value={activeCategory} onValueChange={handleCategoryChange} className="mb-8">
         <TabsList className="mb-4 flex flex-wrap">
           {categories.map((category) => (
             <TabsTrigger
               key={category}
               value={category}
-              onClick={() => handleCategoryChange(category)}
               className="capitalize"
             >
               {category}
@@ -125,13 +154,19 @@ export default function MarketplacePage() {
       ) : filteredEvents().length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredEvents().map((event) => (
-            <MarketplaceEventCard key={event.id} event={event} />
+            <MarketplaceEventCard 
+              key={event.id} 
+              event={event} 
+              showResaleInfo={eventStatus === "active"}
+            />
           ))}
         </div>
       ) : (
         <div className="text-center py-12">
           <h3 className="text-xl font-semibold mb-2">No events found</h3>
-          <p className="text-muted-foreground">There are no active events in this category at the moment.</p>
+          <p className="text-muted-foreground">
+            There are no {eventStatus} events in this category at the moment.
+          </p>
         </div>
       )}
     </div>
