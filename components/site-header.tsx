@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { Store, Landmark, Wallet, Menu, Compass, ShoppingCart } from "lucide-react"
+import { Store, Landmark, Wallet, Menu, Compass, ShoppingCart, User, LogOut, Settings, Ticket } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -31,12 +31,22 @@ export function SiteHeader() {
   const { user, isAuthenticated, signOut } = useAuth()
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
 
   const { theme, systemTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
+  }, [])
+
+  // Handle scroll effect
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20)
+    }
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
   // Fetch user profile when wallet is connected
@@ -89,146 +99,294 @@ export function SiteHeader() {
     return "Account"
   }
 
+  const navigationItems = [
+    {
+      icon: Compass,
+      label: "Events",
+      href: "#",
+      submenu: [
+        { label: "Music", href: "/music" },
+        { label: "Sports", href: "/sports" }
+      ]
+    },
+    {
+      icon: Store,
+      label: "Market",
+      href: "/market",
+      gradient: "from-blue-500 to-purple-600"
+    },
+    {
+      icon: Landmark,
+      label: "For Organizers",
+      href: "/organizer/dashboard",
+      gradient: "from-orange-500 to-red-600"
+    }
+  ]
+
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background">
-      <div className="container flex h-16 items-center justify-between">
-        <div className="flex items-center">
-          <Link href="/" className="flex items-center">
-            <div className="relative">
-              {mounted && (
-                <Image src={logoSrc || "/placeholder.svg"} alt="tiiicket logo" width={140} height={90} priority />
-              )}
-            </div>
-          </Link>
-        </div>
-
-        <div className="hidden md:flex items-center justify-center flex-1 gap-8">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="flex flex-col items-center h-auto py-2 hover:bg-green-500 hover:text-white"
-              >
-                <Compass className="h-6 w-6 mb-1" />
-                <span className="text-xs font-medium">Events</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem asChild>
-                <Link href="/music">Music</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/sports">Sports</Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button
-            variant="ghost"
-            className="flex flex-col items-center h-auto py-2 hover:bg-green-500 hover:text-white"
-            asChild
-          >
-            <Link href="/market">
-              <Store className="h-6 w-6 mb-1" />
-              <span className="text-xs font-medium">Market</span>
-            </Link>
-          </Button>
-
-          <Button
-            variant="ghost"
-            className="flex flex-col items-center h-auto py-2 hover:bg-red-500 hover:text-white"
-            asChild
-          >
-            <Link href="/organizer/dashboard">
-              <Landmark className="h-6 w-6 mb-1" />
-              <span className="text-xs font-medium">For Organizers</span>
-            </Link>
-          </Button>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <ModeToggle />
-          {isConnected || isAuthenticated ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex gap-2">
-                  <Wallet className="h-4 w-4" />
-                  <span className="hidden md:inline-block">{getDisplayName()}</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/profile">Profile</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/tickets">My Tickets</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/organizer/dashboard">Organizer Dashboard</Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={signOut}>Sign Out</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Button variant="outline" asChild>
-                <Link href="/sign-in">Sign In</Link>
-              </Button>
-              <Button variant="default" asChild>
-                <Link href="/sign-up">Register</Link>
-              </Button>
-            </div>
-          )}
-          <Sheet open={isOpen} onOpenChange={setIsOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
-                <Menu className="h-6 w-6" />
-                <span className="sr-only">Toggle menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right">
-              <div className="flex flex-col gap-6 pt-6">
-                <Link href="/music" className="text-sm font-medium" onClick={() => setIsOpen(false)}>
-                  Music
-                </Link>
-                <Link href="/sports" className="text-sm font-medium" onClick={() => setIsOpen(false)}>
-                  Sports
-                </Link>
-                <Link href="/market" className="flex items-center text-sm font-medium" onClick={() => setIsOpen(false)}>
-                  <ShoppingCart className="mr-2 h-4 w-4" />
-                  Market
-                </Link>
-                {!isConnected && !isAuthenticated ? (
-                  <>
-                    <Link href="/sign-in" className="text-sm font-medium" onClick={() => setIsOpen(false)}>
-                      Sign In
-                    </Link>
-                    <Link href="/sign-up" className="text-sm font-medium" onClick={() => setIsOpen(false)}>
-                      Sign Up
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    <Link href="/profile" className="text-sm font-medium" onClick={() => setIsOpen(false)}>
-                      Profile
-                    </Link>
-                    <Link href="/tickets" className="text-sm font-medium" onClick={() => setIsOpen(false)}>
-                      My Tickets
-                    </Link>
-                    <Link href="/organizer/dashboard" className="text-sm font-medium" onClick={() => setIsOpen(false)}>
-                      Organizer Dashboard
-                    </Link>
-                    <button onClick={signOut} className="text-sm font-medium text-red-500">
-                      Sign Out
-                    </button>
-                  </>
+    <header 
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-out ${
+        scrolled 
+          ? 'bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-lg shadow-black/5' 
+          : 'bg-transparent'
+      }`}
+    >
+      {/* Glassmorphism overlay */}
+      <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/90 to-background/95 backdrop-blur-md" />
+      
+      <div className="relative container mx-auto px-4 lg:px-6">
+        <div className="flex h-20 items-center justify-between">
+          {/* Logo Section */}
+          <div className="flex items-center group">
+            <Link href="/" className="flex items-center transition-transform duration-300 group-hover:scale-105">
+              <div className="relative overflow-hidden rounded-xl p-1">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                {mounted && (
+                  <Image 
+                    src={logoSrc || "/placeholder.svg"} 
+                    alt="tiiicket logo" 
+                    width={140} 
+                    height={40} 
+                    priority 
+                    className="relative z-10 transition-all duration-300"
+                  />
                 )}
               </div>
-            </SheetContent>
-          </Sheet>
+            </Link>
+          </div>
+
+          {/* Navigation - Desktop */}
+          <nav className="hidden lg:flex items-center justify-center flex-1 max-w-md mx-8">
+            <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-2xl border border-border/50 backdrop-blur-sm">
+              {navigationItems.map((item, index) => (
+                <div key={item.label} className="relative group">
+                  {item.submenu ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="relative flex flex-col items-center gap-1 px-4 py-3 h-auto rounded-xl transition-all duration-300 hover:bg-gradient-to-r hover:from-emerald-500/20 hover:to-teal-500/20 hover:shadow-lg hover:shadow-emerald-500/25 group-hover:scale-105"
+                        >
+                          <item.icon className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
+                          <span className="text-xs font-medium">{item.label}</span>
+                          <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-xl opacity-0 group-hover:opacity-10 transition-opacity duration-300" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="mt-2 bg-background/95 backdrop-blur-xl border border-border/50 shadow-xl">
+                        {item.submenu.map((subItem) => (
+                          <DropdownMenuItem key={subItem.label} asChild>
+                            <Link 
+                              href={subItem.href}
+                              className="transition-colors duration-200 hover:bg-gradient-to-r hover:from-emerald-500/10 hover:to-teal-500/10"
+                            >
+                              {subItem.label}
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      className={`relative flex flex-col items-center gap-1 px-4 py-3 h-auto rounded-xl transition-all duration-300 group hover:scale-105 ${
+                        item.gradient 
+                          ? `hover:bg-gradient-to-r hover:${item.gradient}/20 hover:shadow-lg hover:shadow-${item.gradient.split('-')[1]}-500/25`
+                          : 'hover:bg-muted/80'
+                      }`}
+                      asChild
+                    >
+                      <Link href={item.href}>
+                        <item.icon className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
+                        <span className="text-xs font-medium">{item.label}</span>
+                        {item.gradient && (
+                          <div className={`absolute inset-0 bg-gradient-to-r ${item.gradient} rounded-xl opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
+                        )}
+                      </Link>
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </nav>
+
+          {/* Right Side Actions */}
+          <div className="flex items-center gap-3">
+            <ModeToggle />
+            
+            {isConnected || isAuthenticated ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="relative flex items-center gap-2 px-4 py-2 h-auto rounded-xl bg-gradient-to-r from-background to-muted/50 border border-border/50 hover:border-border transition-all duration-300 hover:shadow-lg hover:shadow-black/10 group"
+                  >
+                    <div className="relative">
+                      <Wallet className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
+                      <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
+                    </div>
+                    <span className="hidden md:inline-block font-medium text-sm max-w-32 truncate">
+                      {getDisplayName()}
+                    </span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent 
+                  align="end" 
+                  className="w-56 mt-2 bg-background/95 backdrop-blur-xl border border-border/50 shadow-xl"
+                >
+                  <DropdownMenuLabel className="font-semibold text-sm bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    My Account
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile" className="flex items-center gap-2 transition-colors duration-200 hover:bg-gradient-to-r hover:from-blue-500/10 hover:to-purple-500/10">
+                      <User className="h-4 w-4" />
+                      Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/tickets" className="flex items-center gap-2 transition-colors duration-200 hover:bg-gradient-to-r hover:from-emerald-500/10 hover:to-teal-500/10">
+                      <Ticket className="h-4 w-4" />
+                      My Tickets
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/organizer/dashboard" className="flex items-center gap-2 transition-colors duration-200 hover:bg-gradient-to-r hover:from-orange-500/10 hover:to-red-500/10">
+                      <Landmark className="h-4 w-4" />
+                      Organizer Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={signOut}
+                    className="flex items-center gap-2 text-red-500 hover:text-red-600 hover:bg-red-500/10 transition-colors duration-200"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  className="rounded-xl hover:bg-muted/80 transition-all duration-300 hover:scale-105" 
+                  asChild
+                >
+                  <Link href="/sign-in">Sign In</Link>
+                </Button>
+                <Button 
+                  className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300 hover:scale-105" 
+                  asChild
+                >
+                  <Link href="/sign-up">Get Started</Link>
+                </Button>
+              </div>
+            )}
+
+            {/* Mobile Menu */}
+            <Sheet open={isOpen} onOpenChange={setIsOpen}>
+              <SheetTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="lg:hidden rounded-xl hover:bg-muted/80 transition-all duration-300 hover:scale-105"
+                >
+                  <Menu className="h-5 w-5" />
+                  <span className="sr-only">Toggle menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-80 bg-background/95 backdrop-blur-xl border-l border-border/50">
+                <div className="flex flex-col gap-6 pt-8">
+                  <div className="text-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    Navigation
+                  </div>
+                  
+                  <div className="flex flex-col gap-2">
+                    <Link 
+                      href="/music" 
+                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-gradient-to-r hover:from-emerald-500/10 hover:to-teal-500/10 transition-all duration-300 group" 
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Compass className="h-5 w-5 text-emerald-500 group-hover:scale-110 transition-transform duration-300" />
+                      <span className="font-medium">Music Events</span>
+                    </Link>
+                    <Link 
+                      href="/sports" 
+                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-gradient-to-r hover:from-emerald-500/10 hover:to-teal-500/10 transition-all duration-300 group" 
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Compass className="h-5 w-5 text-emerald-500 group-hover:scale-110 transition-transform duration-300" />
+                      <span className="font-medium">Sports Events</span>
+                    </Link>
+                    <Link 
+                      href="/market" 
+                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-gradient-to-r hover:from-blue-500/10 hover:to-purple-500/10 transition-all duration-300 group" 
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Store className="h-5 w-5 text-blue-500 group-hover:scale-110 transition-transform duration-300" />
+                      <span className="font-medium">Marketplace</span>
+                    </Link>
+                  </div>
+
+                  <div className="border-t border-border/50 pt-6">
+                    {!isConnected && !isAuthenticated ? (
+                      <div className="flex flex-col gap-3">
+                        <Link 
+                          href="/sign-in" 
+                          className="flex items-center justify-center gap-2 p-3 rounded-xl border border-border/50 hover:bg-muted/50 transition-all duration-300" 
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <span className="font-medium">Sign In</span>
+                        </Link>
+                        <Link 
+                          href="/sign-up" 
+                          className="flex items-center justify-center gap-2 p-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 transition-all duration-300" 
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <span className="font-medium">Get Started</span>
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <Link 
+                          href="/profile" 
+                          className="flex items-center gap-3 p-3 rounded-xl hover:bg-gradient-to-r hover:from-blue-500/10 hover:to-purple-500/10 transition-all duration-300 group" 
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <User className="h-5 w-5 text-blue-500 group-hover:scale-110 transition-transform duration-300" />
+                          <span className="font-medium">Profile</span>
+                        </Link>
+                        <Link 
+                          href="/tickets" 
+                          className="flex items-center gap-3 p-3 rounded-xl hover:bg-gradient-to-r hover:from-emerald-500/10 hover:to-teal-500/10 transition-all duration-300 group" 
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <Ticket className="h-5 w-5 text-emerald-500 group-hover:scale-110 transition-transform duration-300" />
+                          <span className="font-medium">My Tickets</span>
+                        </Link>
+                        <Link 
+                          href="/organizer/dashboard" 
+                          className="flex items-center gap-3 p-3 rounded-xl hover:bg-gradient-to-r hover:from-orange-500/10 hover:to-red-500/10 transition-all duration-300 group" 
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <Landmark className="h-5 w-5 text-orange-500 group-hover:scale-110 transition-transform duration-300" />
+                          <span className="font-medium">Organizer Dashboard</span>
+                        </Link>
+                        <button 
+                          onClick={() => { signOut(); setIsOpen(false); }}
+                          className="flex items-center gap-3 p-3 rounded-xl hover:bg-red-500/10 text-red-500 hover:text-red-600 transition-all duration-300 group text-left"
+                        >
+                          <LogOut className="h-5 w-5 group-hover:scale-110 transition-transform duration-300" />
+                          <span className="font-medium">Sign Out</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
       </div>
     </header>
