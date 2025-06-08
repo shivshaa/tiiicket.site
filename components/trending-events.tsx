@@ -99,7 +99,7 @@ export function TrendingEvents() {
         <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/10 via-transparent to-orange-500/10" />
         
         {/* Animated Background Elements */}
-        <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-full blur-xl animate-pulse" />
+        <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-r from-grey-400/20 to-black-400/20 rounded-full blur-xl animate-pulse" />
         <div className="absolute bottom-20 right-10 w-40 h-40 bg-gradient-to-r from-pink-400/20 to-orange-400/20 rounded-full blur-xl animate-pulse" style={{ animationDelay: '1s' }} />
         <div className="absolute top-1/2 left-1/3 w-24 h-24 bg-gradient-to-r from-green-400/20 to-blue-400/20 rounded-full blur-xl animate-pulse" style={{ animationDelay: '2s' }} />
         
