@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { LazyImage } from "@/components/ui/lazy-image"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+
 import { getTicketsListedForEvent } from "@/lib/supabase"
 import { ethToInr } from "@/lib/contract"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -23,7 +23,6 @@ const ticketCache = new Map()
 const MarketplaceEventCard = memo(function MarketplaceEventCard({ event, showResaleInfo = true }) {
   const [tickets, setTickets] = useState([])
   const [loading, setLoading] = useState(true)
-  const [buyingTicket, setBuyingTicket] = useState(null)
   const router = useRouter()
   const { address } = useWallet()
   const { toast } = useToast()
@@ -129,35 +128,6 @@ const MarketplaceEventCard = memo(function MarketplaceEventCard({ event, showRes
     }
   }, [event.id, fetchTickets, cacheKey, showResaleInfo])
 
-  const handleBuyTicket = useCallback(
-    async (ticket) => {
-      if (!address) {
-        toast({
-          title: "Wallet not connected",
-          description: "Please connect your wallet to purchase tickets",
-          variant: "destructive",
-        })
-        return
-      }
-
-      try {
-        setBuyingTicket(ticket.token_id)
-
-        // Navigate to the purchase page with the ticket details
-        router.push(`/market/purchase/${ticket.token_id}`)
-      } catch (error) {
-        console.error("Error initiating purchase:", error)
-        toast({
-          title: "Purchase failed",
-          description: error.message || "There was an error initiating the purchase",
-          variant: "destructive",
-        })
-        setBuyingTicket(null)
-      }
-    },
-    [address, router, toast],
-  )
-
   const truncateAddress = useCallback((address) => {
     if (!address) return ""
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`
@@ -215,64 +185,15 @@ const MarketplaceEventCard = memo(function MarketplaceEventCard({ event, showRes
             </h3>
 
             {loading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
+              <div className="flex justify-center py-4">
+                <Skeleton className="h-6 w-32" />
               </div>
             ) : tickets.length > 0 ? (
-              <>
-                <div className="mb-3">
-                  <Badge variant="outline" className="text-green-600 border-green-200">
-                    {tickets.length} ticket{tickets.length !== 1 ? 's' : ''} available
-                  </Badge>
-                </div>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Seat</TableHead>
-                        <TableHead>Price</TableHead>
-                        <TableHead>Seller</TableHead>
-                        <TableHead></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {tickets.slice(0, 3).map((ticket) => (
-                        <TableRow key={ticket.token_id}>
-                          <TableCell className="font-medium">
-                            {ticket.tickets?.seat_info || `Ticket #${ticket.token_id}`}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className="font-semibold">{ticket.resale_price} ETH</span>
-                              <span className="text-xs text-muted-foreground">
-                                ₹{ethToInr(ticket.resale_price).toLocaleString()}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs">{truncateAddress(ticket.seller_address)}</TableCell>
-                          <TableCell>
-                            <Button
-                              size="sm"
-                              onClick={() => handleBuyTicket(ticket)}
-                              disabled={buyingTicket === ticket.token_id}
-                              className="w-full"
-                            >
-                              {buyingTicket === ticket.token_id ? "Processing..." : "Buy"}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-                {tickets.length > 3 && (
-                  <p className="text-xs text-center mt-2 text-muted-foreground">
-                    +{tickets.length - 3} more ticket{tickets.length - 3 !== 1 ? 's' : ''} available
-                  </p>
-                )}
-              </>
+              <div className="text-center py-4">
+                <Badge variant="outline" className="text-green-600 border-green-200">
+                  {tickets.length} ticket{tickets.length !== 1 ? 's' : ''} available for resale
+                </Badge>
+              </div>
             ) : (
               <div className="text-center py-4">
                 <Badge variant="outline" className="text-gray-500 border-gray-200 mb-2">
