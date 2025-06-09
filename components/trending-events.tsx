@@ -360,7 +360,7 @@ export function TrendingEvents() {
                                    shadow-lg hover:shadow-xl hover:shadow-orange-500/25 border-0
                                    font-semibold tracking-wide"
                         >
-                          Join the Trend
+                          View
                         </Button>
                       </CardFooter>
 
