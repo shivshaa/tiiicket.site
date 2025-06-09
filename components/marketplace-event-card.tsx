@@ -173,9 +173,9 @@ const MarketplaceEventCard = memo(function MarketplaceEventCard({ event, showRes
       </CardHeader>
 
       <CardContent className="flex-grow">
-        <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+        {/*<p className="text-sm text-muted-foreground line-clamp-2 mb-4">
           {event.description || "No description available"}
-        </p>
+        </p> */}
 
         {showResaleInfo ? (
           <>
