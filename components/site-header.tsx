@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import Image from "next/image"
+import { motion } from "framer-motion"
 import { Store, Landmark, Wallet, Menu, Compass, ShoppingCart, User, LogOut, Settings, Ticket, TicketCheck } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
@@ -144,7 +145,34 @@ export function SiteHeader() {
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 {mounted && (
                   <div className="flex items-center gap-2 relative z-10">
-                    <TicketCheck className="h-8 w-8 text-black-400 animate-bounce drop-shadow-lg" />
+                    {/* Sparkling TicketCheck Icon */}
+                    <div className="relative w-fit">
+                      {/* Silver Glow */}
+                      <div className="absolute inset-0 rounded-full bg-gradient-to-r from-gray-300 via-white to-gray-400 blur-xl opacity-30 z-0" />
+
+                      {/* Sparkle Dots */}
+                      <motion.div
+                        className="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full z-10"
+                        animate={{ scale: [0, 1, 0], opacity: [0, 1, 0] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                      />
+                      <motion.div
+                        className="absolute -bottom-1 -left-1 w-1.5 h-1.5 bg-slate-200 rounded-full z-10"
+                        animate={{ scale: [0, 1, 0], opacity: [0, 1, 0] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                      />
+
+                      {/* Animated Icon */}
+                      <motion.div
+                        animate={{ y: [0, -5, 0], rotate: [0, 5, -5, 0] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                        className="relative z-20"
+                      >
+                        <TicketCheck className="h-8 w-8 text-gray-400 drop-shadow-md" />
+                      </motion.div>
+                    </div>
+
+                    {/* Logo Image */}
                     <Image 
                       src={logoSrc || "/placeholder.svg"} 
                       alt="tiiicket logo" 
@@ -158,6 +186,7 @@ export function SiteHeader() {
               </div>
             </Link>
           </div>
+
 
 
 
