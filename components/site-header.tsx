@@ -107,7 +107,8 @@ export function SiteHeader() {
       submenu: [
         { label: "Music", href: "/music" },
         { label: "Sports", href: "/sports" }
-      ]
+      ],
+      gradient: "from-green-500 to-violet-600"
     },
     {
       icon: Store,
