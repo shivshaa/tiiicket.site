@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { Store, Landmark, Wallet, Menu, Compass, ShoppingCart, User, LogOut, Settings, TicketCheck } from "lucide-react"
+import { Store, Landmark, Wallet, Menu, Compass, ShoppingCart, User, LogOut, Settings, Ticket, TicketCheck } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
