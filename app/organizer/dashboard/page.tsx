@@ -864,7 +864,7 @@ export default function OrganizerDashboard() {
                               </div>
                             </div>
                           ))}
-                      </div>
+
                       {events.filter((event) => event.status !== "active").length === 0 && (
                         <div className="text-center py-6">
                           <p className="text-muted-foreground">No past events found.</p>
