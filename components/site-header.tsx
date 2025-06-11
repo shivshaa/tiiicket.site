@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { Store, Landmark, Wallet, Menu, Compass, ShoppingCart, User, LogOut, Settings, Tickets } from "lucide-react"
+import { Store, Landmark, Wallet, Menu, Compass, ShoppingCart, User, LogOut, Settings, TicketCheck } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -143,7 +143,7 @@ export function SiteHeader() {
               <div className="relative overflow-hidden rounded-xl p-1">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 {mounted && (
-                <Tickets className="h-10 w-10 text-black-400 animate-pulse drop-shadow-lg" />
+                <TicketCheck className="h-10 w-10 text-black-400 animate-pulse drop-shadow-lg" />
                   <Image 
                     src={logoSrc || "/placeholder.svg"} 
                     alt="tiiicket logo" 
