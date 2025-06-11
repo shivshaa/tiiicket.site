@@ -143,19 +143,22 @@ export function SiteHeader() {
               <div className="relative overflow-hidden rounded-xl p-1">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 {mounted && (
-                <TicketCheck className="h-10 w-10 text-black-400 animate-pulse drop-shadow-lg" />
-                  <Image 
-                    src={logoSrc || "/placeholder.svg"} 
-                    alt="tiiicket logo" 
-                    width={140} 
-                    height={40} 
-                    priority 
-                    className="relative z-10 transition-all duration-300"
-                  />
+                  <>
+                    <TicketCheck className="h-10 w-10 text-black-400 animate-pulse drop-shadow-lg" />
+                    <Image 
+                      src={logoSrc || "/placeholder.svg"} 
+                      alt="tiiicket logo" 
+                      width={140} 
+                      height={40} 
+                      priority 
+                      className="relative z-10 transition-all duration-300"
+                    />
+                  </>
                 )}
               </div>
             </Link>
           </div>
+
 
           {/* Navigation - Desktop */}
           <nav className="hidden lg:flex items-center justify-center flex-1 max-w-md mx-8">
