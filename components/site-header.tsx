@@ -187,9 +187,13 @@ export function SiteHeader() {
             </Link>
           </div>
 
+
+
+
+
           {/* Navigation - Desktop */}
-          <nav className="hidden lg:flex items-center justify-center flex-1 max-w-lg mx-8">
-            <div className="flex items-center gap-1 p-2 bg-muted/50 rounded-2xl border border-border/50 backdrop-blur-sm">
+          <nav className="hidden lg:flex items-center justify-center flex-1 max-w-md mx-8">
+            <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-2xl border border-border/50 backdrop-blur-sm">
               {navigationItems.map((item, index) => (
                 <div key={item.label} className="relative group">
                   {item.submenu ? (
@@ -197,10 +201,10 @@ export function SiteHeader() {
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
-                          className="relative flex flex-col items-center justify-center gap-1 px-3 py-3 h-16 w-20 rounded-xl transition-all duration-300 hover:bg-gradient-to-r hover:from-emerald-500/20 hover:to-teal-500/20 hover:shadow-lg hover:shadow-emerald-500/25 group-hover:scale-105"
+                          className="relative flex flex-col items-center gap-1 px-4 py-3 h-auto rounded-xl transition-all duration-300 hover:bg-gradient-to-r hover:from-emerald-500/20 hover:to-teal-500/20 hover:shadow-lg hover:shadow-emerald-500/25 group-hover:scale-105"
                         >
                           <item.icon className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
-                          <span className="text-xs font-medium text-center leading-tight">{item.label}</span>
+                          <span className="text-xs font-medium">{item.label}</span>
                           <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-xl opacity-0 group-hover:opacity-10 transition-opacity duration-300" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -220,13 +224,19 @@ export function SiteHeader() {
                   ) : (
                     <Button
                       variant="ghost"
-                      className="relative flex flex-col items-center justify-center gap-1 px-3 py-3 h-16 w-20 rounded-xl transition-all duration-300 group hover:scale-105 hover:bg-gradient-to-r hover:from-blue-500/20 hover:to-purple-500/20 hover:shadow-lg hover:shadow-blue-500/25"
+                      className={`relative flex flex-col items-center gap-1 px-4 py-3 h-auto rounded-xl transition-all duration-300 group hover:scale-105 ${
+                        item.gradient 
+                          ? `hover:bg-gradient-to-r hover:${item.gradient}/20 hover:shadow-lg hover:shadow-${item.gradient.split('-')[1]}-500/25`
+                          : 'hover:bg-muted/80'
+                      }`}
                       asChild
                     >
                       <Link href={item.href}>
                         <item.icon className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
-                        <span className="text-xs font-medium text-center leading-tight">{item.label}</span>
-                        <div className={`absolute inset-0 bg-gradient-to-r ${item.gradient} rounded-xl opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
+                        <span className="text-xs font-medium">{item.label}</span>
+                        {item.gradient && (
+                          <div className={`absolute inset-0 bg-gradient-to-r ${item.gradient} rounded-xl opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
+                        )}
                       </Link>
                     </Button>
                   )}
@@ -296,15 +306,13 @@ export function SiteHeader() {
               <div className="flex items-center gap-2">
                 <Button 
                   variant="outline" 
-                  size="sm"
-                  className="relative rounded-xl border-border/50 bg-background/50 backdrop-blur-sm hover:bg-background/80 hover:border-border hover:shadow-md transition-all duration-300 hover:scale-[1.02] font-medium" 
+                  className="rounded-xl hover:bg-muted/80 transition-all duration-300 hover:scale-105" 
                   asChild
                 >
                   <Link href="/sign-in">Sign In</Link>
                 </Button>
                 <Button 
-                  size="sm"
-                  className="relative rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300 hover:scale-[1.02] font-medium" 
+                  className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300 hover:scale-105" 
                   asChild
                 >
                   <Link href="/sign-up">Get Started</Link>
@@ -362,17 +370,17 @@ export function SiteHeader() {
                       <div className="flex flex-col gap-3">
                         <Link 
                           href="/sign-in" 
-                          className="flex items-center justify-center gap-2 p-3 rounded-xl border border-border/50 bg-background/50 backdrop-blur-sm hover:bg-background/80 hover:border-border transition-all duration-300 font-medium" 
+                          className="flex items-center justify-center gap-2 p-3 rounded-xl border border-border/50 hover:bg-muted/50 transition-all duration-300" 
                           onClick={() => setIsOpen(false)}
                         >
-                          <span>Sign In</span>
+                          <span className="font-medium">Sign In</span>
                         </Link>
                         <Link 
                           href="/sign-up" 
-                          className="flex items-center justify-center gap-2 p-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/25 transition-all duration-300 font-medium" 
+                          className="flex items-center justify-center gap-2 p-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 transition-all duration-300" 
                           onClick={() => setIsOpen(false)}
                         >
-                          <span>Get Started</span>
+                          <span className="font-medium">Get Started</span>
                         </Link>
                       </div>
                     ) : (
