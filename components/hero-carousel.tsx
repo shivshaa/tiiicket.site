@@ -29,10 +29,10 @@ export function HeroCarousel() {
 
   const carouselMedia: CarouselMedia[] = [
     {
-      url: "https://res.cloudinary.com/deximageapi/image/upload/v1748328769/9303834_fbecua.jpg",
+      url: "https://res.cloudinary.com/deximageapi/video/upload/v1751044178/v1_gt1zib.mp4",
       alt: "Concert with crowd and stage lights",
       caption: "Experience Unforgettable Live Sports Events.",
-      type: "image",
+      type: "video",
     },
     {
       url: "https://videos.pexels.com/video-files/2430839/2430839-uhd_2560_1440_24fps.mp4",

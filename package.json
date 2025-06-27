@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "dev": "next dev",
+    "lint": "next lint",
+    "start": "next start"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",
@@ -48,6 +48,7 @@
     "embla-carousel-react": "8.5.1",
     "ethers": "latest",
     "framer-motion": "latest",
+    "https:": "latest",
     "input-otp": "1.4.1",
     "lucide-react": "^0.454.0",
     "magic-sdk": "latest",
