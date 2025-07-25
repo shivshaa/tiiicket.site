@@ -29,7 +29,7 @@ export function HeroCarousel() {
 
   const carouselMedia: CarouselMedia[] = [
     {
-      url: "https://res.cloudinary.com/deximageapi/video/upload/v1751044178/v1_gt1zib.mp4",
+      url: "https://videos.pexels.com/video-files/2711231/2711231-uhd_2560_1440_24fps.mp4",
       alt: "Concert with crowd and stage lights",
       caption: "Experience Unforgettable Live Sports Events.",
       type: "video",
@@ -41,7 +41,7 @@ export function HeroCarousel() {
       type: "video",
     },
     {
-      url: "https://videos.pexels.com/video-files/2324274/2324274-uhd_2560_1440_25fps.mp4",
+      url: "https://videos.pexels.com/video-files/3459703/3459703-uhd_2560_1440_30fps.mp4",
       alt: "Concert with crowd and stage lights",
       caption: "Easy Buy and Sell on the Marketplace",
       type: "video",
