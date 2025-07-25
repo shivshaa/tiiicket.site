@@ -41,7 +41,7 @@ export function HeroCarousel() {
       type: "video",
     },
     {
-      url: "https://videos.pexels.com/video-files/3459703/3459703-uhd_2560_1440_30fps.mp4",
+      url: "https://videos.pexels.com/video-files/3722209/3722209-hd_1920_1080_25fps.mp4",
       alt: "Concert with crowd and stage lights",
       caption: "Easy Buy and Sell on the Marketplace",
       type: "video",
@@ -65,10 +65,10 @@ export function HeroCarousel() {
       type: "video",
     },
     {
-    url: "https://res.cloudinary.com/deximageapi/image/upload/v1748328767/9303816_okrs82.jpg",
+    url: "https://videos.pexels.com/video-files/20537082/20537082-uhd_2560_1440_30fps.mp4",
     alt: "ocean drone",
     caption: "No Refund Drama",
-    type: "image",
+    type: "video",
     },
   ]
 
