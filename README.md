@@ -45,7 +45,7 @@ tiiicket.com addresses long-standing industry challenges with a **blockchain-fir
 - Scalping & unauthorized resales eliminated  
 
 <p align="center">
-  <img src="assets/smart-contracts.png" alt="Smart Contracts Flow" width="600"/>
+  <img src="assets/create-event.png" alt="Smart Contracts Flow" width="600"/>
 </p>
 
 ---
