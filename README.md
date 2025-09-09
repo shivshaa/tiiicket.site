@@ -4,7 +4,7 @@
 Secure. Transparent. Fair. For organizers, fans, and the entire ecosystem.
 
 <p align="center">
-  <img src="assets/tiiicket-logo.png" alt="tiiicket logo" width="250"/>
+  <img src="assets/tiiicket-black.png" alt="tiiicket logo" width="250"/>
 </p>
 
 ---
@@ -33,7 +33,7 @@ tiiicket.com addresses long-standing industry challenges with a **blockchain-fir
 - No more counterfeit tickets  
 
 <p align="center">
-  <img src="assets/ticket-authentication.png" alt="Blockchain Ticket Authentication" width="600"/>
+  <img src="assets/how-it-works.png" alt="Blockchain Ticket" width="600"/>
 </p>
 
 ---
