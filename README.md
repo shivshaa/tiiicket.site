@@ -1,30 +1,144 @@
-# WebIsGreyV3
+# 🎟️ tiiicket.com
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+> **Revolutionizing event ticketing with blockchain technology**  
+Secure. Transparent. Fair. For organizers, fans, and the entire ecosystem.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/shivshaspace-gmailcoms-projects/v0-web-is-grey-v3)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/jyWz3ayrlSJ)
+<p align="center">
+  <img src="assets/tiiicket-logo.png" alt="tiiicket logo" width="250"/>
+</p>
 
-## Overview
+---
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+## 🌍 Our Vision
 
-## Deployment
+tiiicket.com envisions a transparent, secure, and efficient event ticketing ecosystem where:
 
-Your project is live at:
+- 🎤 **Event organizers** maintain complete control over ticket distribution & secondary market revenue  
+- 🙌 **Fans and attendees** enjoy authentic tickets at fair prices with enhanced experiences  
+- 🛡️ **The industry** benefits from reduced fraud, increased transparency, and operational efficiency  
+- 🚀 **Innovation** drives new revenue models, collectibles, and fan engagement opportunities  
 
-**[https://vercel.com/shivshaspace-gmailcoms-projects/v0-web-is-grey-v3](https://vercel.com/shivshaspace-gmailcoms-projects/v0-web-is-grey-v3)**
+✨ Beyond ticketing — we aim to build a **comprehensive ecosystem** of **event management, fan engagement, digital collectibles, and community building** powered by blockchain.
 
-## Build your app
+---
 
-Continue building your app on:
+## 💡 Our Solution
 
-**[https://v0.dev/chat/projects/jyWz3ayrlSJ](https://v0.dev/chat/projects/jyWz3ayrlSJ)**
+tiiicket.com addresses long-standing industry challenges with a **blockchain-first approach**.
 
-## How It Works
+### 🔗 1. Blockchain-Based Ticket Authentication
+- Unique cryptographic token minted for each ticket  
+- Immutable record of ownership & transfer history  
+- Instant authenticity verification  
+- No more counterfeit tickets  
 
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+<p align="center">
+  <img src="assets/ticket-authentication.png" alt="Blockchain Ticket Authentication" width="600"/>
+</p>
+
+---
+
+### 📝 2. Smart Contract Controlled Secondary Market
+- Automated resale rules & price limit enforcement  
+- Revenue sharing with event organizers  
+- Fully transparent transaction history  
+- Scalping & unauthorized resales eliminated  
+
+<p align="center">
+  <img src="assets/smart-contracts.png" alt="Smart Contracts Flow" width="600"/>
+</p>
+
+---
+
+### 🎨 3. User-Friendly Interface
+- Web3 features without technical complexity  
+- Mobile-first & responsive design  
+- Seamless onboarding for non-crypto users  
+- Integration with fiat payments  
+
+---
+
+### 📊 4. Comprehensive Analytics
+- Real-time sales dashboards  
+- Audience behavior insights  
+- Revenue optimization tools  
+- Built-in fraud detection  
+
+---
+
+### ⭐ 5. Enhanced Fan Experience
+- NFT collectibles & exclusive content  
+- Rewards & loyalty programs  
+- Personalized event recommendations  
+- Community engagement features  
+
+<p align="center">
+  <img src="assets/fan-engagement.png" alt="Enhanced Fan Experience" width="600"/>
+</p>
+
+---
+
+## 🏢 Business Overview
+
+### 6.1 Platform Model
+tiiicket.com operates as a **B2B2C platform** for organizers, venues, and fans.  
+
+**Revenue Streams:**
+- 2–5% platform fee on primary sales  
+- 10–15% revenue share on secondary resales  
+- Premium event organizer services  
+- API licensing for third-party integrators  
+- Data insights & analytics packages  
+
+**Target Markets:**
+- 🎶 Concerts & Festivals  
+- 🏏 Sports & Leagues  
+- 🎭 Theater & Cultural Events  
+- 💼 Conferences & Corporate Events  
+- 🌐 Virtual & Hybrid Experiences  
+
+---
+
+### 6.2 Sustainability & Scalability
+- ♻️ Built on **energy-efficient blockchains**  
+- 🌱 Carbon offset programs for events  
+- 📲 100% paperless ticketing  
+- ⚡ Layer 2 scaling for large events  
+- 🌍 Cross-chain compatibility for global reach  
+
+---
+
+### 6.3 tiiicket.com Pvt. Ltd. (India)
+- 📍 Registered in Aurangabad, Maharashtra  
+- ✅ Private Limited Company (India)  
+- ⚖️ RBI, IT Act 2000, GST, and FEMA compliance  
+- 🎥 Focused on Bollywood, Cricket, and Indian regional markets  
+- 🌏 Positioned for Asian expansion  
+
+---
+
+## 🛠️ Tech Stack (Proposed)
+- **Frontend**: React + Tailwind + Next.js  
+- **Blockchain**: Polygon (Ethereum Layer 2)  
+- **Backend**: Node.js + Supabase (Auth, DB)  
+- **Payments**: Razorpay + WalletConnect (crypto payments)  
+- **Analytics**: In-house dashboards + blockchain explorers  
+
+<p align="center">
+  <img src="assets/stack-diagram.png" alt="Tech Stack" width="700"/>
+</p>
+
+---
+
+## 🚀 Getting Started
+
+```bash
+# Clone the repo
+git clone https://github.com/tiiicket/tiiicket.com.git
+
+# Install dependencies
+cd tiiicket.com
+npm install
+
+# Start development server
+npm run dev
